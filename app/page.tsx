@@ -1,65 +1,144 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Dices, RotateCcw } from 'lucide-react';
+import { Button } from './components/ui/Button';
+import { OperatorDisplay } from './components/OperatorDisplay';
+import { StatCounter } from './components/StatCounter';
+import { FinalScreen } from './components/FinalScreen';
+import { getRandomOperator, generateLoadout } from './data/operators';
+import { Operator, Loadout } from './data/types';
 
 export default function Home() {
+  const [kills, setKills] = useState(0);
+  const [deaths, setDeaths] = useState(0);
+  const [currentOperator, setCurrentOperator] = useState<Operator | null>(null);
+  const [currentLoadout, setCurrentLoadout] = useState<Loadout | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+  const [wallpaperError, setWallpaperError] = useState(false);
+
+  const isComplete = kills >= 100;
+
+  // Reset wallpaper error when operator changes
+  useEffect(() => {
+    setWallpaperError(false);
+  }, [currentOperator?.id]);
+
+  const handleRoll = () => {
+    setIsRolling(true);
+    // Simple timeout to simulate "rolling" feel
+    setTimeout(() => {
+      const op = getRandomOperator();
+      const loadout = generateLoadout(op);
+      setCurrentOperator(op);
+      setCurrentLoadout(loadout);
+      setIsRolling(false);
+    }, 400);
+  };
+
+  const handleReset = () => {
+    if (confirm("Are you sure you want to reset the run?")) {
+      setKills(0);
+      setDeaths(0);
+      setCurrentOperator(null);
+      setCurrentLoadout(null);
+    }
+  };
+
+  const handleFullReset = () => {
+    setKills(0);
+    setDeaths(0);
+    setCurrentOperator(null);
+    setCurrentLoadout(null);
+  }
+
+  const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="min-h-screen bg-black text-zinc-100 p-4 font-sans selection:bg-yellow-500/30 relative overflow-hidden">
+      
+      {/* Global Wallpaper Layer */}
+      <div className="fixed inset-0 z-0">
+        {currentOperator && wallpaperPath && !wallpaperError ? (
+          <img 
+            key={currentOperator.id} 
+            src={wallpaperPath} 
+            alt="Global Wallpaper"
+            className="w-full h-full object-cover opacity-20 blur-sm scale-110 animate-ken-burns"
+            onError={() => setWallpaperError(true)}
+          />
+        ) : (
+          // Fallback Gradient
+          <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black" />
+        )}
+      </div>
+
+      {/* Final Screen Overlay */}
+      {isComplete && (
+        <FinalScreen 
+          kills={kills} 
+          deaths={deaths} 
+          onReset={handleFullReset} 
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+      )}
+
+      <div className="relative z-10 max-w-md mx-auto flex flex-col gap-6 pb-20">
+        
+        {/* Header / Stats */}
+        <header className="flex items-center justify-between py-4 border-b border-white/10">
+          <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
+            Xawars <span className="text-white">RNG</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
+            Reset Run
+          </Button>
+        </header>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-4">
+          <StatCounter 
+            label="Kills" 
+            value={kills} 
+            onIncrement={() => setKills(k => k + 1)} 
+          />
+          <StatCounter 
+            label="Deaths" 
+            value={deaths} 
+            onIncrement={() => setDeaths(d => d + 1)} 
+            variant="danger"
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Operator Card area */}
+        <OperatorDisplay 
+          operator={currentOperator} 
+          loadout={currentLoadout}
+          isRolling={isRolling}
+        />
+
+        {/* Action Button */}
+        <Button 
+          onClick={handleRoll} 
+          disabled={isRolling} 
+          size="lg" 
+          className="w-full text-lg py-6"
+          icon={Dices}
+        >
+          {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
+        </Button>
+
+        {/* Footer info */}
+        <div className="mt-8 text-center">
+            <p className="text-xs text-zinc-600 uppercase tracking-widest font-bold">Goal: 100 Kills</p>
+            <div className="w-full bg-zinc-900 h-1.5 mt-2 rounded-full overflow-hidden">
+                <div 
+                    className="h-full bg-yellow-500 transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(kills, 100)}%` }}
+                />
+            </div>
         </div>
-      </main>
-    </div>
+
+      </div>
+    </main>
   );
 }
