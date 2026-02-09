@@ -6,6 +6,7 @@ import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { StatCounter } from './components/StatCounter';
 import { FinalScreen } from './components/FinalScreen';
+import { HistoryList, HistoryItem } from './components/HistoryList';
 import { getRandomOperator, generateLoadout } from './data/operators';
 import { Operator, Loadout } from './data/types';
 
@@ -14,6 +15,7 @@ export default function Home() {
   const [deaths, setDeaths] = useState(0);
   const [currentOperator, setCurrentOperator] = useState<Operator | null>(null);
   const [currentLoadout, setCurrentLoadout] = useState<Loadout | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
 
@@ -30,8 +32,18 @@ export default function Home() {
     setTimeout(() => {
       const op = getRandomOperator();
       const loadout = generateLoadout(op);
+      
       setCurrentOperator(op);
       setCurrentLoadout(loadout);
+
+      // Add to history
+      const newHistoryItem: HistoryItem = {
+        id: Date.now(),
+        operator: op,
+        loadout: loadout
+      };
+      setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
+      
       setIsRolling(false);
     }, 400);
   };
@@ -42,6 +54,7 @@ export default function Home() {
       setDeaths(0);
       setCurrentOperator(null);
       setCurrentLoadout(null);
+      setHistory([]);
     }
   };
 
@@ -50,6 +63,7 @@ export default function Home() {
     setDeaths(0);
     setCurrentOperator(null);
     setCurrentLoadout(null);
+    setHistory([]);
   }
 
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
@@ -126,6 +140,9 @@ export default function Home() {
         >
           {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
         </Button>
+
+        {/* History List */}
+        <HistoryList history={history} />
 
         {/* Footer info */}
         <div className="mt-8 text-center">
