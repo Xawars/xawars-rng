@@ -8,6 +8,8 @@ export interface HistoryItem {
   loadout: Loadout;
 }
 
+import { OperatorIcon } from './OperatorIcon';
+
 interface HistoryListProps {
   history: HistoryItem[];
 }
@@ -27,15 +29,9 @@ export function HistoryList({ history }: HistoryListProps) {
           >
             {/* Mini Icon */}
             <div className={`h-10 w-10 flex-shrink-0 rounded-md flex items-center justify-center font-bold text-lg ${item.operator.side === 'attacker' ? 'bg-orange-900/20 text-orange-500' : 'bg-blue-900/20 text-blue-500'}`}>
-              <img 
-                src={`/ops/${item.operator.id}_icon.png`} 
-                alt={item.operator.name}
-                className="w-full h-full object-contain drop-shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerText = item.operator.name[0];
-                }} 
-              />
+              <OperatorIcon id={item.operator.id} className="w-full h-full drop-shadow-sm">
+                 {item.operator.name[0]}
+              </OperatorIcon>
             </div>
 
             {/* Info */}

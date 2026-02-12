@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Operator, Loadout } from '../data/types';
+import * as r6operators from 'r6operators';
 
 interface OperatorDisplayProps {
   operator: Operator | null;
@@ -12,11 +13,9 @@ interface OperatorDisplayProps {
 export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
-  const [iconError, setIconError] = useState(false);
 
   useEffect(() => {
     setBgError(false);
-    setIconError(false);
   }, [operator?.id]);
 
   if (!operator || !loadout) {
@@ -29,7 +28,14 @@ export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDispla
 
   // Paths
   const bgPath = `/ops/${operator.id}.jpg`;
-  const iconPath = `/ops/${operator.id}_icon.png`;
+  
+  // Get icon from r6operators library
+  const opIconData = (r6operators as any)[operator.id];
+  const iconSvg = opIconData?.toSVG({
+    class: "w-full h-full drop-shadow-lg",
+    width: "100%",
+    height: "100%"
+  });
 
   return (
     <div className={`relative flex flex-col w-full bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl transition-opacity duration-300 ${isRolling ? 'opacity-50 blur-sm' : 'opacity-100'}`}>
@@ -66,12 +72,10 @@ export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDispla
           
           {/* Icon */}
           <div className="h-16 w-16 flex items-center justify-center">
-            {!iconError ? (
-               <img 
-                 src={iconPath} 
-                 alt={operator.name} 
-                 className="w-full h-full object-contain drop-shadow-lg"
-                 onError={() => setIconError(true)}
+            {iconSvg ? (
+               <div 
+                 className="w-full h-full flex items-center justify-center"
+                 dangerouslySetInnerHTML={{ __html: iconSvg }}
                />
             ) : (
                 // Fallback Icon

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dices, RotateCcw } from 'lucide-react';
+import { Dices, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { useAudioFeedback } from './hooks/useAudioFeedback';
+import { useSoundContext } from './context/SoundContext';
 import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { StatCounter } from './components/StatCounter';
@@ -18,6 +20,9 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
+  
+  const { playRoll, stopRoll, playReveal, playKill, playDeath, playGoal } = useAudioFeedback();
+  const { isMuted, toggleMute } = useSoundContext();
 
   const isComplete = kills >= 100;
 
@@ -28,6 +33,7 @@ export default function Home() {
 
   const handleRoll = () => {
     setIsRolling(true);
+    playRoll();
     // Simple timeout to simulate "rolling" feel
     setTimeout(() => {
       const op = getRandomOperator();
@@ -45,6 +51,15 @@ export default function Home() {
       setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
       
       setIsRolling(false);
+      stopRoll();
+      
+      // Determine if "Legendary" (e.g. 3-speed or just 3 armor/3 speed logic if we had it, 
+      // for now let's say "Attacker" is standard, "Defender" is legendary for variety, 
+      // or just random. Let's make 3-speed/3-health operators legendary if that data existed.
+      // Since we only have basic data, let's say any operator with 'Elite' in name would be, but we don't have that.
+      // Let's just make it random for "CRITICAL" feel or based on side.
+      // Let's use side: 'defender' = legendary sound for contrast.
+      playReveal(op.side === 'defender'); 
     }, 400);
   };
 
@@ -103,9 +118,14 @@ export default function Home() {
           <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
             Xawars <span className="text-white">RNG</span>
           </h1>
-          <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
-            Reset Run
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
+              <span className="sr-only">Toggle Mute</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
+              Reset Run
+            </Button>
+          </div>
         </header>
 
         {/* Stats Row */}
@@ -113,12 +133,22 @@ export default function Home() {
           <StatCounter 
             label="Kills" 
             value={kills} 
-            onIncrement={() => setKills(k => k + 1)} 
+            onIncrement={() => {
+              setKills(k => {
+                const newVal = k + 1;
+                if (newVal === 100) playGoal();
+                else playKill();
+                return newVal;
+              });
+            }} 
           />
           <StatCounter 
             label="Deaths" 
             value={deaths} 
-            onIncrement={() => setDeaths(d => d + 1)} 
+            onIncrement={() => {
+              setDeaths(d => d + 1);
+              playDeath();
+            }} 
             variant="danger"
           />
         </div>
