@@ -1,18 +1,18 @@
-import { Copy, Camera, Monitor, Download } from 'lucide-react';
+import { Copy, Camera, Monitor } from 'lucide-react';
 import { Button } from './ui/Button';
 
 interface CreatorToolsProps {
     onCopySummary: () => void;
     onToggleStreamerMode: () => void;
     isStreamerMode: boolean;
-    onDownloadThumbnail: () => void;
+    onOpenThumbnailEditor: () => void;
 }
 
 export function CreatorTools({
     onCopySummary,
     onToggleStreamerMode,
     isStreamerMode,
-    onDownloadThumbnail
+    onOpenThumbnailEditor
 }: CreatorToolsProps) {
     return (
         <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 p-2 bg-black/50 backdrop-blur-md rounded-lg border border-white/10 transition-opacity hover:opacity-100 opacity-50">
@@ -30,8 +30,7 @@ export function CreatorTools({
 
             <Button
                 variant="ghost"
-                size="sm" // Fix for variant type error from previous context, ideally should be valid if Button serves it
-                // actually looking at Button.tsx, variant 'ghost' is valid.
+                size="sm"
                 onClick={onToggleStreamerMode}
                 icon={Monitor}
                 className={isStreamerMode ? "text-green-400" : ""}
@@ -43,11 +42,11 @@ export function CreatorTools({
             <Button
                 variant="ghost"
                 size="sm"
-                onClick={onDownloadThumbnail}
+                onClick={onOpenThumbnailEditor}
                 icon={Camera}
-                title="Download Thumbnail"
+                title="Open Thumbnail Editor"
             >
-                <span className="sr-only">Download Thumbnail</span>
+                <span className="sr-only">Open Thumbnail Editor</span>
             </Button>
         </div>
     );
