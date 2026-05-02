@@ -12,9 +12,9 @@ import { FinalScreen } from './components/FinalScreen';
 import { HistoryList, HistoryItem } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
 import { CreatorTools } from './components/CreatorTools';
+import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
 import { getRandomOperator, generateLoadout } from './data/operators';
 import { Operator, Loadout } from './data/types';
-import { toPng } from 'html-to-image';
 
 export default function Home() {
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
@@ -28,6 +28,7 @@ export default function Home() {
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStreamerMode, setIsStreamerMode] = useState(false);
+  const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -125,22 +126,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
     }
   };
 
-  const handleDownloadThumbnail = async () => {
-    const element = document.getElementById('operator-card-container');
-    if (!element) return;
-
-    try {
-      const dataUrl = await toPng(element, { cacheBust: true });
-
-      const link = document.createElement('a');
-      link.download = `xawars-rng-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Failed to generate thumbnail:', err);
-    }
-  };
-
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
 
   return (
@@ -151,7 +136,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         onCopySummary={handleCopySummary}
         onToggleStreamerMode={() => setIsStreamerMode(!isStreamerMode)}
         isStreamerMode={isStreamerMode}
-        onDownloadThumbnail={handleDownloadThumbnail}
+        onOpenThumbnailEditor={() => setIsThumbnailEditorOpen(true)}
+      />
+
+      <ThumbnailEditorModal
+        isOpen={isThumbnailEditorOpen}
+        onClose={() => setIsThumbnailEditorOpen(false)}
+        defaultOperator={currentOperator}
+        defaultLoadout={currentLoadout}
+        defaultKills={kills}
+        defaultDeaths={deaths}
       />
 
       {/* Global Wallpaper Layer - Hide in streamer mode */}

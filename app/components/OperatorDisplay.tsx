@@ -8,9 +8,11 @@ interface OperatorDisplayProps {
   operator: Operator | null;
   loadout: Loadout | null;
   isRolling?: boolean;
+  hideBg?: boolean;
+  hideLoadout?: boolean;
 }
 
-export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, isRolling, hideBg, hideLoadout }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
 
@@ -38,24 +40,26 @@ export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDispla
   });
 
   return (
-    <div className={`relative flex flex-col w-full bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl transition-opacity duration-300 ${isRolling ? 'opacity-50 blur-sm' : 'opacity-100'}`}>
+    <div className={`relative flex flex-col w-full border rounded-xl overflow-hidden shadow-2xl transition-opacity duration-300 ${hideBg ? 'border-zinc-800/50 bg-black/40 backdrop-blur-sm' : 'bg-zinc-900 border-zinc-800'} ${isRolling ? 'opacity-50 blur-sm' : 'opacity-100'}`}>
       
       {/* Background Image Layer */}
-      <div className="absolute inset-0 z-0">
-        {!bgError ? (
-          <img 
-            src={bgPath} 
-            alt="" 
-            className="w-full h-full object-cover object-top opacity-40 animate-ken-burns"
-            onError={() => setBgError(true)}
-          />
-        ) : (
-          // Fallback Gradient if image fails
-          <div className={`w-full h-full ${operator.side === 'attacker' ? 'bg-gradient-to-br from-orange-900/40 to-black' : 'bg-gradient-to-br from-blue-900/40 to-black'}`} />
-        )}
-        {/* Overlay gradient to ensure text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/80 to-zinc-900" />
-      </div>
+      {!hideBg && (
+        <div className="absolute inset-0 z-0">
+          {!bgError ? (
+            <img 
+              src={bgPath} 
+              alt="" 
+              className="w-full h-full object-cover object-top opacity-40 animate-ken-burns"
+              onError={() => setBgError(true)}
+            />
+          ) : (
+            // Fallback Gradient if image fails
+            <div className={`w-full h-full ${operator.side === 'attacker' ? 'bg-gradient-to-br from-orange-900/40 to-black' : 'bg-gradient-to-br from-blue-900/40 to-black'}`} />
+          )}
+          {/* Overlay gradient to ensure text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/80 to-zinc-900" />
+        </div>
+      )}
 
       {/* Content Layer */}
       <div className="relative z-10">
@@ -87,11 +91,13 @@ export function OperatorDisplay({ operator, loadout, isRolling }: OperatorDispla
         </div>
 
         {/* Loadout Grid */}
-        <div className="p-6 grid gap-6">
-          <LoadoutItem label="Primary Weapon" value={loadout.primary} />
-          <LoadoutItem label="Secondary Weapon" value={loadout.secondary} />
-          <LoadoutItem label="Gadget" value={loadout.gadget} />
-        </div>
+        {!hideLoadout && (
+          <div className="p-6 grid gap-6">
+            <LoadoutItem label="Primary Weapon" value={loadout.primary} />
+            <LoadoutItem label="Secondary Weapon" value={loadout.secondary} />
+            <LoadoutItem label="Gadget" value={loadout.gadget} />
+          </div>
+        )}
       </div>
     </div>
   );

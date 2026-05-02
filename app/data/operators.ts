@@ -127,7 +127,7 @@ export const operators: Operator[] = [
     side: "defender",
     primaries: ["9x19VSN", "SASG-12"],
     secondaries: ["PMM", "GSH-18"],
-    gadgets: ["Impact Grenade", "Nitro Cell"]
+    gadgets: ["Barbed Wire", "Bulletproof Camera"]
   },
   {
     id: "tachanka",
@@ -638,6 +638,16 @@ export const operators: Operator[] = [
     primaries: ["SC-4000K", "FO-12"],
     secondaries: ["Keratos .357"],
     gadgets: ["Barbed Wire", "Observation Blocker"]
+  },
+  
+  // --- GUESTS ---
+  {
+    id: "snake",
+    name: "Solid Snake",
+    side: "attacker",
+    primaries: ["F2", "PMR90A2"],
+    secondaries: ["TACIT .45"],
+    gadgets: ["Frag Grenade", "Stun Grenade", "Impact EMP Grenade"]
   }
 ];
 
