@@ -1,4 +1,4 @@
-import { Operator, Side, Loadout } from './types';
+import { Operator, Side, Loadout, MatchType } from './types';
 
 // FULL ROSTER (Pathfinder - Year 10)
 export const operators: Operator[] = [
@@ -670,4 +670,10 @@ export function generateLoadout(op: Operator): Loadout {
     secondary,
     gadget
   };
+}
+
+export const MATCH_TYPES: MatchType[] = ['Ranked', 'Unranked', 'Quick Match', 'Deathmatch'];
+
+export function getRandomMatchType(): MatchType {
+  return MATCH_TYPES[Math.floor(Math.random() * MATCH_TYPES.length)];
 }

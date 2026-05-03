@@ -1,5 +1,7 @@
 export type Side = 'attacker' | 'defender';
 
+export type MatchType = 'Ranked' | 'Unranked' | 'Quick Match' | 'Deathmatch';
+
 export interface Loadout {
   primary: string;
   secondary: string;

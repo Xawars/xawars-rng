@@ -6,6 +6,7 @@ export interface HistoryItem {
   id: number;
   operator: Operator;
   loadout: Loadout;
+  matchType?: string;
 }
 
 import { OperatorIcon } from './OperatorIcon';
@@ -37,7 +38,10 @@ export function HistoryList({ history }: HistoryListProps) {
             {/* Info */}
             <div className="flex-1 min-w-0">
                <div className="flex items-center justify-between">
-                 <h4 className="text-sm font-bold text-zinc-200 uppercase truncate">{item.operator.name}</h4>
+                 <h4 className="text-sm font-bold text-zinc-200 uppercase truncate">
+                   {item.operator.name}
+                   {item.matchType && <span className="ml-2 text-[10px] text-zinc-400 font-normal normal-case tracking-normal">({item.matchType})</span>}
+                 </h4>
                  <span className={`text-[10px] font-bold uppercase tracking-wider ${item.operator.side === 'attacker' ? 'text-orange-500/80' : 'text-blue-500/80'}`}>
                     {item.operator.side}
                  </span>

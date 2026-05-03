@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Download, Image as ImageIcon, LayoutTemplate, Type, Check, MousePointer2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { OperatorDisplay } from './OperatorDisplay';
-import { operators } from '../data/operators';
-import { Operator, Loadout } from '../data/types';
+import { operators, MATCH_TYPES } from '../data/operators';
+import { Operator, Loadout, MatchType } from '../data/types';
 import { toPng } from 'html-to-image';
 
 interface ThumbnailEditorModalProps {
@@ -13,6 +13,7 @@ interface ThumbnailEditorModalProps {
   onClose: () => void;
   defaultOperator: Operator | null;
   defaultLoadout: Loadout | null;
+  defaultMatchType?: MatchType | null;
   defaultKills: number;
   defaultDeaths: number;
 }
@@ -22,6 +23,7 @@ export function ThumbnailEditorModal({
   onClose,
   defaultOperator,
   defaultLoadout,
+  defaultMatchType,
   defaultKills,
   defaultDeaths
 }: ThumbnailEditorModalProps) {
@@ -34,6 +36,7 @@ export function ThumbnailEditorModal({
   const [primary, setPrimary] = useState(defaultLoadout?.primary || selectedOperator.primaries[0]);
   const [secondary, setSecondary] = useState(defaultLoadout?.secondary || selectedOperator.secondaries[0]);
   const [gadget, setGadget] = useState(defaultLoadout?.gadget || selectedOperator.gadgets[0]);
+  const [matchType, setMatchType] = useState<MatchType>(defaultMatchType || MATCH_TYPES[0]);
   
   const [customTitle, setCustomTitle] = useState("");
   const [bgStyle, setBgStyle] = useState<"wallpaper" | "transparent" | "solid">("wallpaper");
@@ -63,10 +66,11 @@ export function ThumbnailEditorModal({
         setPrimary(defaultLoadout?.primary || (defaultOperator || operators[0]).primaries[0]);
         setSecondary(defaultLoadout?.secondary || (defaultOperator || operators[0]).secondaries[0]);
         setGadget(defaultLoadout?.gadget || (defaultOperator || operators[0]).gadgets[0]);
+        setMatchType(defaultMatchType || MATCH_TYPES[0]);
         setKills(defaultKills);
         setDeaths(defaultDeaths);
     }
-  }, [isOpen, defaultOperator, defaultLoadout, defaultKills, defaultDeaths]);
+  }, [isOpen, defaultOperator, defaultLoadout, defaultMatchType, defaultKills, defaultDeaths]);
 
   const currentLoadout: Loadout = { primary, secondary, gadget };
 
@@ -150,6 +154,13 @@ export function ThumbnailEditorModal({
                 <label className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Gadget</label>
                 <select value={gadget} onChange={e => setGadget(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-md p-2 text-white focus:border-yellow-500 outline-none">
                   {selectedOperator.gadgets.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Match Type</label>
+                <select value={matchType} onChange={e => setMatchType(e.target.value as MatchType)} className="w-full bg-zinc-900 border border-zinc-700 rounded-md p-2 text-white focus:border-yellow-500 outline-none">
+                  {MATCH_TYPES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             </div>
@@ -288,6 +299,7 @@ export function ThumbnailEditorModal({
                   <OperatorDisplay 
                     operator={selectedOperator} 
                     loadout={currentLoadout} 
+                    matchType={matchType}
                     hideBg={bgStyle === 'transparent'}
                     hideLoadout={!showLoadout}
                   />

@@ -7,12 +7,13 @@ import * as r6operators from 'r6operators';
 interface OperatorDisplayProps {
   operator: Operator | null;
   loadout: Loadout | null;
+  matchType?: string | null;
   isRolling?: boolean;
   hideBg?: boolean;
   hideLoadout?: boolean;
 }
 
-export function OperatorDisplay({ operator, loadout, isRolling, hideBg, hideLoadout }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
 
@@ -66,9 +67,16 @@ export function OperatorDisplay({ operator, loadout, isRolling, hideBg, hideLoad
         {/* Operator Header */}
         <div className="p-6 flex items-center justify-between">
           <div>
-            <span className={`text-xs font-bold uppercase tracking-widest mb-1 block ${operator.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
-              {operator.side}
-            </span>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-xs font-bold uppercase tracking-widest block ${operator.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
+                {operator.side}
+              </span>
+              {matchType && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                  {matchType}
+                </span>
+              )}
+            </div>
             <h2 className="text-4xl font-black text-white uppercase tracking-tighter drop-shadow-md">
               {operator.name}
             </h2>
