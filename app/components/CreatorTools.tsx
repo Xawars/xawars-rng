@@ -1,4 +1,4 @@
-import { Copy, Camera, Monitor } from 'lucide-react';
+import { Copy, Camera, Monitor, Video } from 'lucide-react';
 import { Button } from './ui/Button';
 
 interface CreatorToolsProps {
@@ -6,13 +6,15 @@ interface CreatorToolsProps {
     onToggleStreamerMode: () => void;
     isStreamerMode: boolean;
     onOpenThumbnailEditor: () => void;
+    onOpenAnimationExporter: () => void;
 }
 
 export function CreatorTools({
     onCopySummary,
     onToggleStreamerMode,
     isStreamerMode,
-    onOpenThumbnailEditor
+    onOpenThumbnailEditor,
+    onOpenAnimationExporter
 }: CreatorToolsProps) {
     return (
         <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 p-2 bg-black/50 backdrop-blur-md rounded-lg border border-white/10 transition-opacity hover:opacity-100 opacity-50">
@@ -47,6 +49,16 @@ export function CreatorTools({
                 title="Open Thumbnail Editor"
             >
                 <span className="sr-only">Open Thumbnail Editor</span>
+            </Button>
+
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenAnimationExporter}
+                icon={Video}
+                title="Export Animation"
+            >
+                <span className="sr-only">Export Animation</span>
             </Button>
         </div>
     );

@@ -9,11 +9,12 @@ interface DeploymentModalProps {
     isOpen: boolean;
     operator: Operator | null;
     loadout: Loadout | null;
+    matchType?: string | null;
     onAccept: () => void;
     onReject: () => void;
 }
 
-export function DeploymentModal({ isOpen, operator, loadout, onAccept, onReject }: DeploymentModalProps) {
+export function DeploymentModal({ isOpen, operator, loadout, matchType, onAccept, onReject }: DeploymentModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
     // Close on Escape key
@@ -54,7 +55,7 @@ export function DeploymentModal({ isOpen, operator, loadout, onAccept, onReject 
                 {/* Content */}
                 <div className="p-6 flex flex-col items-center">
                     <div className="w-full mb-8">
-                        <OperatorDisplay operator={operator} loadout={loadout} isRolling={false} />
+                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} isRolling={false} />
                     </div>
 
                     <div className="flex gap-4 w-full">

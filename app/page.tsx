@@ -13,22 +13,27 @@ import { HistoryList, HistoryItem } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
 import { CreatorTools } from './components/CreatorTools';
 import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
-import { getRandomOperator, generateLoadout } from './data/operators';
-import { Operator, Loadout } from './data/types';
+import { AnimationExporterModal } from './components/AnimationExporterModal';
+import { MatchTypeSelector } from './components/MatchTypeSelector';
+import { getRandomOperator, generateLoadout, getRandomMatchType } from './data/operators';
+import { Operator, Loadout, MatchType } from './data/types';
 
 export default function Home() {
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
   const [currentOperator, setCurrentOperator] = usePersistedState<Operator | null>('xawars_currentOperator', null);
   const [currentLoadout, setCurrentLoadout] = usePersistedState<Loadout | null>('xawars_currentLoadout', null);
+  const [currentMatchType, setCurrentMatchType] = usePersistedState<MatchType | null>('xawars_currentMatchType', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
+  const [pendingMatchType, setPendingMatchType] = useState<MatchType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStreamerMode, setIsStreamerMode] = useState(false);
   const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
+  const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -50,10 +55,12 @@ export default function Home() {
     setTimeout(() => {
       const op = getRandomOperator();
       const loadout = generateLoadout(op);
+      const matchType = getRandomMatchType();
 
       // Set pending state instead of current
       setPendingOperator(op);
       setPendingLoadout(loadout);
+      setPendingMatchType(matchType);
 
       setIsRolling(false);
       stopRoll();
@@ -71,12 +78,14 @@ export default function Home() {
 
     setCurrentOperator(pendingOperator);
     setCurrentLoadout(pendingLoadout);
+    if (pendingMatchType) setCurrentMatchType(pendingMatchType);
 
     // Add to history
     const newHistoryItem: HistoryItem = {
       id: Date.now(),
       operator: pendingOperator,
-      loadout: pendingLoadout
+      loadout: pendingLoadout,
+      matchType: pendingMatchType || undefined
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
@@ -87,12 +96,14 @@ export default function Home() {
     setIsModalOpen(false);
     setPendingOperator(null);
     setPendingLoadout(null);
+    setPendingMatchType(null);
   };
 
   const handleReject = () => {
     setIsModalOpen(false);
     setPendingOperator(null);
     setPendingLoadout(null);
+    setPendingMatchType(null);
   };
 
   const handleReset = () => {
@@ -101,6 +112,7 @@ export default function Home() {
       setDeaths(0);
       setCurrentOperator(null);
       setCurrentLoadout(null);
+      setCurrentMatchType(null);
       setHistory([]);
     }
   };
@@ -110,6 +122,7 @@ export default function Home() {
     setDeaths(0);
     setCurrentOperator(null);
     setCurrentLoadout(null);
+    setCurrentMatchType(null);
     setHistory([]);
   }
 
@@ -137,6 +150,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         onToggleStreamerMode={() => setIsStreamerMode(!isStreamerMode)}
         isStreamerMode={isStreamerMode}
         onOpenThumbnailEditor={() => setIsThumbnailEditorOpen(true)}
+        onOpenAnimationExporter={() => setIsAnimationExporterOpen(true)}
       />
 
       <ThumbnailEditorModal
@@ -144,8 +158,14 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         onClose={() => setIsThumbnailEditorOpen(false)}
         defaultOperator={currentOperator}
         defaultLoadout={currentLoadout}
+        defaultMatchType={currentMatchType}
         defaultKills={kills}
         defaultDeaths={deaths}
+      />
+
+      <AnimationExporterModal 
+        isOpen={isAnimationExporterOpen}
+        onClose={() => setIsAnimationExporterOpen(false)}
       />
 
       {/* Global Wallpaper Layer - Hide in streamer mode */}
@@ -171,6 +191,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         isOpen={isModalOpen}
         operator={pendingOperator}
         loadout={pendingLoadout}
+        matchType={pendingMatchType}
         onAccept={handleAccept}
         onReject={handleReject}
       />
@@ -235,11 +256,19 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             />
           </div>
 
+          {/* Match Type Selector */}
+          <MatchTypeSelector 
+            currentType={currentMatchType} 
+            onRoll={(type) => setCurrentMatchType(type)}
+            isRollingParent={isRolling} 
+          />
+
           {/* Operator Card area */}
           <div id="operator-card-container">
             <OperatorDisplay
               operator={currentOperator}
               loadout={currentLoadout}
+              matchType={currentMatchType}
               isRolling={isRolling}
             />
           </div>
