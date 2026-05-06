@@ -17,6 +17,7 @@ import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { OptionsRow } from './components/OptionsRow';
 import { OperatorCardModal } from './components/OperatorCardModal';
+import { MapAdvisor } from './components/MapAdvisor';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole } from './data/operators';
 import { Operator, Loadout, MatchType } from './data/types';
 
@@ -44,6 +45,7 @@ export default function Home() {
   const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor'>('roulette');
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -255,14 +257,39 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
           {/* Header / Stats */}
           <header className="flex items-center justify-between py-4 border-b border-white/10">
-            <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
-              Xawars <span className="text-white">RNG</span>
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
+                Xawars <span className="text-white">RNG</span>
+              </h1>
+              {/* View Mode Tabs */}
+              <div className="flex bg-zinc-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('roulette')}
+                  className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                    viewMode === 'roulette'
+                      ? 'bg-yellow-500 text-black'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Roulette
+                </button>
+                <button
+                  onClick={() => setViewMode('map-advisor')}
+                  className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                    viewMode === 'map-advisor'
+                      ? 'bg-yellow-500 text-black'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Map Advisor
+                </button>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
                 <span className="sr-only">Toggle Mute</span>
               </Button>
-              {!isStreamerMode && (
+              {!isStreamerMode && viewMode === 'roulette' && (
                 <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
                   Reset Run
                 </Button>
@@ -270,6 +297,10 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             </div>
           </header>
 
+          {viewMode === 'map-advisor' ? (
+            <MapAdvisor />
+          ) : (
+            <>
           {/* Stats Row */}
           <div className="grid grid-cols-2 gap-4">
             <StatCounter
@@ -369,6 +400,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                 />
               </div>
             </div>
+          )}
+            </>
           )}
 
         </div>
