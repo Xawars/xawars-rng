@@ -7,15 +7,18 @@ export interface HistoryItem {
   operator: Operator;
   loadout: Loadout;
   matchType?: string;
+  targetKills?: number;
+  role?: string;
 }
 
 import { OperatorIcon } from './OperatorIcon';
 
 interface HistoryListProps {
   history: HistoryItem[];
+  onItemClick?: (item: HistoryItem) => void;
 }
 
-export function HistoryList({ history }: HistoryListProps) {
+export function HistoryList({ history, onItemClick }: HistoryListProps) {
   if (history.length === 0) return null;
 
   return (
@@ -24,9 +27,10 @@ export function HistoryList({ history }: HistoryListProps) {
       
       <div className="flex flex-col gap-2">
         {history.map((item) => (
-          <div 
+          <div
             key={item.id}
-            className="flex items-center gap-3 bg-zinc-900/80 border border-zinc-800 p-3 rounded-lg backdrop-blur-sm animate-in slide-in-from-left-4 fade-in duration-300"
+            onClick={() => onItemClick?.(item)}
+            className="flex items-center gap-3 bg-zinc-900/80 border border-zinc-800 p-3 rounded-lg backdrop-blur-sm animate-in slide-in-from-left-4 fade-in duration-300 cursor-pointer hover:border-yellow-500/50 hover:bg-zinc-800/80 transition-colors"
           >
             {/* Mini Icon */}
             <div className={`h-10 w-10 flex-shrink-0 rounded-md flex items-center justify-center font-bold text-lg ${item.operator.side === 'attacker' ? 'bg-orange-900/20 text-orange-500' : 'bg-blue-900/20 text-blue-500'}`}>

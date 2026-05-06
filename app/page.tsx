@@ -16,6 +16,7 @@ import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
 import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { OptionsRow } from './components/OptionsRow';
+import { OperatorCardModal } from './components/OperatorCardModal';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole } from './data/operators';
 import { Operator, Loadout, MatchType } from './data/types';
 
@@ -42,6 +43,7 @@ export default function Home() {
   const [isStreamerMode, setIsStreamerMode] = useState(false);
   const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -106,7 +108,9 @@ export default function Home() {
       id: Date.now(),
       operator: pendingOperator,
       loadout: pendingLoadout,
-      matchType: pendingMatchType || undefined
+      matchType: pendingMatchType || undefined,
+      targetKills: pendingTargetKills,
+      role: pendingRole
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
@@ -372,9 +376,15 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         {/* Right Column - History - Hide in streamer mode */}
         {!isStreamerMode && (
           <div className="w-80 pt-[72px]">
-            <HistoryList history={history} />
+            <HistoryList history={history} onItemClick={setSelectedHistoryItem} />
           </div>
         )}
+
+        {/* History Item Modal */}
+        <OperatorCardModal
+          item={selectedHistoryItem}
+          onClose={() => setSelectedHistoryItem(null)}
+        />
 
       </div>
     </main>
