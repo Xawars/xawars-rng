@@ -15,7 +15,7 @@ import { CreatorTools } from './components/CreatorTools';
 import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
 import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
-import { getRandomOperator, generateLoadout, getRandomMatchType } from './data/operators';
+import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills } from './data/operators';
 import { Operator, Loadout, MatchType } from './data/types';
 
 export default function Home() {
@@ -24,13 +24,17 @@ export default function Home() {
   const [currentOperator, setCurrentOperator] = usePersistedState<Operator | null>('xawars_currentOperator', null);
   const [currentLoadout, setCurrentLoadout] = usePersistedState<Loadout | null>('xawars_currentLoadout', null);
   const [currentMatchType, setCurrentMatchType] = usePersistedState<MatchType | null>('xawars_currentMatchType', null);
+  const [currentTargetKills, setCurrentTargetKills] = usePersistedState<number>('xawars_currentTargetKills', 0);
+  const [operatorKills, setOperatorKills] = usePersistedState<Record<string, number>>('xawars_operatorKills', {});
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
   const [pendingMatchType, setPendingMatchType] = useState<MatchType | null>(null);
+  const [pendingTargetKills, setPendingTargetKills] = useState<number>(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [targetComplete, setTargetComplete] = useState(false);
   const [isStreamerMode, setIsStreamerMode] = useState(false);
   const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
@@ -51,16 +55,19 @@ export default function Home() {
   const handleRoll = () => {
     setIsRolling(true);
     playRoll();
+    setTargetComplete(false);
     // Simple timeout to simulate "rolling" feel
     setTimeout(() => {
       const op = getRandomOperator();
       const loadout = generateLoadout(op);
       const matchType = getRandomMatchType();
+      const targetKills = getRandomTargetKills();
 
       // Set pending state instead of current
       setPendingOperator(op);
       setPendingLoadout(loadout);
       setPendingMatchType(matchType);
+      setPendingTargetKills(targetKills);
 
       setIsRolling(false);
       stopRoll();
@@ -79,6 +86,13 @@ export default function Home() {
     setCurrentOperator(pendingOperator);
     setCurrentLoadout(pendingLoadout);
     if (pendingMatchType) setCurrentMatchType(pendingMatchType);
+    setCurrentTargetKills(pendingTargetKills);
+
+    // Ensure the operator has a kill counter entry (reset to 0 for fresh deployment)
+    setOperatorKills(prev => ({
+      ...prev,
+      [pendingOperator.id]: 0
+    }));
 
     // Add to history
     const newHistoryItem: HistoryItem = {
@@ -97,6 +111,8 @@ export default function Home() {
     setPendingOperator(null);
     setPendingLoadout(null);
     setPendingMatchType(null);
+    setPendingTargetKills(0);
+    setTargetComplete(false);
   };
 
   const handleReject = () => {
@@ -104,6 +120,7 @@ export default function Home() {
     setPendingOperator(null);
     setPendingLoadout(null);
     setPendingMatchType(null);
+    setPendingTargetKills(0);
   };
 
   const handleReset = () => {
@@ -113,7 +130,10 @@ export default function Home() {
       setCurrentOperator(null);
       setCurrentLoadout(null);
       setCurrentMatchType(null);
+      setCurrentTargetKills(0);
+      setOperatorKills({});
       setHistory([]);
+      setTargetComplete(false);
     }
   };
 
@@ -123,7 +143,10 @@ export default function Home() {
     setCurrentOperator(null);
     setCurrentLoadout(null);
     setCurrentMatchType(null);
+    setCurrentTargetKills(0);
+    setOperatorKills({});
     setHistory([]);
+    setTargetComplete(false);
   }
 
   const handleCopySummary = async () => {
@@ -192,6 +215,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         operator={pendingOperator}
         loadout={pendingLoadout}
         matchType={pendingMatchType}
+        targetKills={pendingTargetKills}
         onAccept={handleAccept}
         onReject={handleReject}
       />
@@ -243,6 +267,22 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                   else playKill();
                   return newVal;
                 });
+
+                // Track operator kills
+                if (currentOperator) {
+                  setOperatorKills(prev => {
+                    const currentOpKills = prev[currentOperator.id] || 0;
+                    const newOpKills = currentOpKills + 1;
+                    // Check if target completed
+                    if (newOpKills === currentTargetKills) {
+                      setTargetComplete(true);
+                    }
+                    return {
+                      ...prev,
+                      [currentOperator.id]: newOpKills
+                    };
+                  });
+                }
               }}
             />
             <StatCounter
@@ -270,8 +310,20 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               loadout={currentLoadout}
               matchType={currentMatchType}
               isRolling={isRolling}
+              targetKills={currentTargetKills}
+              operatorKills={currentOperator ? (operatorKills[currentOperator.id] || 0) : 0}
             />
           </div>
+
+          {/* Target Complete Banner */}
+          {targetComplete && currentOperator && (
+            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-center animate-pulse">
+              <p className="text-green-400 font-bold uppercase tracking-wider">
+                Target Complete: {currentOperator.name} reached {currentTargetKills} kills!
+              </p>
+              <p className="text-zinc-400 text-sm mt-1">Reroll to continue or keep playing</p>
+            </div>
+          )}
 
           {/* Action Button */}
           <Button

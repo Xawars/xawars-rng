@@ -677,3 +677,7 @@ export const MATCH_TYPES: MatchType[] = ['Ranked', 'Unranked', 'Quick Match', 'D
 export function getRandomMatchType(): MatchType {
   return MATCH_TYPES[Math.floor(Math.random() * MATCH_TYPES.length)];
 }
+
+export function getRandomTargetKills(): number {
+  return Math.floor(Math.random() * 20) + 1;
+}
