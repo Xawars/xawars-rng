@@ -16,6 +16,7 @@ export interface Operator {
   primaries: string[];   // e.g. ["R4-C", "G36C"]
   secondaries: string[]; // e.g. ["5.7 USG", "M45 MEUSOC"]
   gadgets: string[];     // e.g. ["Breach Charge", "Claymore"]
+  roles: string[];      // e.g. ["Hard Breacher", "Support"]
 }
 
 export interface Deployment {
@@ -23,4 +24,5 @@ export interface Deployment {
   loadout: Loadout;
   matchType?: MatchType;
   targetKills: number;
+  role?: string;
 }

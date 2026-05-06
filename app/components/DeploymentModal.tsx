@@ -5,17 +5,20 @@ import { Button } from './ui/Button';
 import { OperatorDisplay } from './OperatorDisplay';
 import { Operator, Loadout } from '../data/types';
 
+import { getRoleColor } from '../data/roles';
+
 interface DeploymentModalProps {
     isOpen: boolean;
     operator: Operator | null;
     loadout: Loadout | null;
     matchType?: string | null;
     targetKills?: number;
+    role?: string;
     onAccept: () => void;
     onReject: () => void;
 }
 
-export function DeploymentModal({ isOpen, operator, loadout, matchType, targetKills, onAccept, onReject }: DeploymentModalProps) {
+export function DeploymentModal({ isOpen, operator, loadout, matchType, targetKills, role, onAccept, onReject }: DeploymentModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
     // Close on Escape key
@@ -55,15 +58,24 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, targetKi
 
                 {/* Content */}
                 <div className="p-6 flex flex-col items-center">
-                    {targetKills && (
-                        <div className="mb-4 px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-full">
-                            <span className="text-yellow-400 font-bold uppercase tracking-wider text-sm">
-                                Target: {targetKills} Kills
-                            </span>
-                        </div>
-                    )}
+                    <div className="flex gap-2 mb-4">
+                        {targetKills && (
+                            <div className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-full">
+                                <span className="text-yellow-400 font-bold uppercase tracking-wider text-sm">
+                                    Target: {targetKills} Kills
+                                </span>
+                            </div>
+                        )}
+                        {role && (
+                            <div className={`px-4 py-2 ${getRoleColor(role as any)}/20 border ${getRoleColor(role as any)}/50 rounded-full`}>
+                                <span className={`${getRoleColor(role as any).replace('bg-', 'text-')} font-bold uppercase tracking-wider text-sm`}>
+                                    {role}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     <div className="w-full mb-8">
-                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} isRolling={false} targetKills={targetKills} operatorKills={0} />
+                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} isRolling={false} targetKills={targetKills} operatorKills={0} role={role} />
                     </div>
 
                     <div className="flex gap-4 w-full">

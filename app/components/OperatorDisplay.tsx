@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Operator, Loadout } from '../data/types';
+import { getRoleColor, Role } from '../data/roles';
 import * as r6operators from 'r6operators';
 
 interface OperatorDisplayProps {
@@ -13,9 +14,10 @@ interface OperatorDisplayProps {
   hideLoadout?: boolean;
   targetKills?: number;
   operatorKills?: number;
+  role?: string;
 }
 
-export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0 }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0, role }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
 
@@ -76,6 +78,11 @@ export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideB
               {matchType && (
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/50">
                   {matchType}
+                </span>
+              )}
+              {role && (
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${getRoleColor(role as Role)}/30 ${getRoleColor(role as Role).replace('bg-', 'text-')}`}>
+                  {role}
                 </span>
               )}
             </div>

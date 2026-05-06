@@ -15,7 +15,8 @@ import { CreatorTools } from './components/CreatorTools';
 import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
 import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
-import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills } from './data/operators';
+import { OptionsRow } from './components/OptionsRow';
+import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole } from './data/operators';
 import { Operator, Loadout, MatchType } from './data/types';
 
 export default function Home() {
@@ -26,6 +27,8 @@ export default function Home() {
   const [currentMatchType, setCurrentMatchType] = usePersistedState<MatchType | null>('xawars_currentMatchType', null);
   const [currentTargetKills, setCurrentTargetKills] = usePersistedState<number>('xawars_currentTargetKills', 0);
   const [operatorKills, setOperatorKills] = usePersistedState<Record<string, number>>('xawars_operatorKills', {});
+  const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
+  const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Transient state for the deployment flow
@@ -33,6 +36,7 @@ export default function Home() {
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
   const [pendingMatchType, setPendingMatchType] = useState<MatchType | null>(null);
   const [pendingTargetKills, setPendingTargetKills] = useState<number>(0);
+  const [pendingRole, setPendingRole] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetComplete, setTargetComplete] = useState(false);
   const [isStreamerMode, setIsStreamerMode] = useState(false);
@@ -62,12 +66,14 @@ export default function Home() {
       const loadout = generateLoadout(op);
       const matchType = getRandomMatchType();
       const targetKills = getRandomTargetKills();
+      const role = showRoles ? getRandomRole(op) : '';
 
       // Set pending state instead of current
       setPendingOperator(op);
       setPendingLoadout(loadout);
       setPendingMatchType(matchType);
       setPendingTargetKills(targetKills);
+      setPendingRole(role);
 
       setIsRolling(false);
       stopRoll();
@@ -87,6 +93,7 @@ export default function Home() {
     setCurrentLoadout(pendingLoadout);
     if (pendingMatchType) setCurrentMatchType(pendingMatchType);
     setCurrentTargetKills(pendingTargetKills);
+    if (pendingRole) setCurrentRole(pendingRole);
 
     // Ensure the operator has a kill counter entry (reset to 0 for fresh deployment)
     setOperatorKills(prev => ({
@@ -121,6 +128,7 @@ export default function Home() {
     setPendingLoadout(null);
     setPendingMatchType(null);
     setPendingTargetKills(0);
+    setPendingRole('');
   };
 
   const handleReset = () => {
@@ -131,6 +139,7 @@ export default function Home() {
       setCurrentLoadout(null);
       setCurrentMatchType(null);
       setCurrentTargetKills(0);
+      setCurrentRole('');
       setOperatorKills({});
       setHistory([]);
       setTargetComplete(false);
@@ -144,6 +153,7 @@ export default function Home() {
     setCurrentLoadout(null);
     setCurrentMatchType(null);
     setCurrentTargetKills(0);
+    setCurrentRole('');
     setOperatorKills({});
     setHistory([]);
     setTargetComplete(false);
@@ -216,6 +226,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         loadout={pendingLoadout}
         matchType={pendingMatchType}
         targetKills={pendingTargetKills}
+        role={showRoles ? pendingRole : undefined}
         onAccept={handleAccept}
         onReject={handleReject}
       />
@@ -297,10 +308,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           </div>
 
           {/* Match Type Selector */}
-          <MatchTypeSelector 
-            currentType={currentMatchType} 
+          <MatchTypeSelector
+            currentType={currentMatchType}
             onRoll={(type) => setCurrentMatchType(type)}
-            isRollingParent={isRolling} 
+            isRollingParent={isRolling}
+          />
+
+          {/* Options Row */}
+          <OptionsRow
+            showRoles={showRoles}
+            onToggleRoles={(enabled) => setShowRoles(enabled)}
           />
 
           {/* Operator Card area */}
@@ -312,6 +329,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               isRolling={isRolling}
               targetKills={currentTargetKills}
               operatorKills={currentOperator ? (operatorKills[currentOperator.id] || 0) : 0}
+              role={showRoles ? currentRole : undefined}
             />
           </div>
 
