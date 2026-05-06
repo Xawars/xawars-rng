@@ -17,3 +17,10 @@ export interface Operator {
   secondaries: string[]; // e.g. ["5.7 USG", "M45 MEUSOC"]
   gadgets: string[];     // e.g. ["Breach Charge", "Claymore"]
 }
+
+export interface Deployment {
+  operator: Operator;
+  loadout: Loadout;
+  matchType?: MatchType;
+  targetKills: number;
+}

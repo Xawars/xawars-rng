@@ -11,9 +11,11 @@ interface OperatorDisplayProps {
   isRolling?: boolean;
   hideBg?: boolean;
   hideLoadout?: boolean;
+  targetKills?: number;
+  operatorKills?: number;
 }
 
-export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0 }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
 
@@ -97,6 +99,22 @@ export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideB
             )}
           </div>
         </div>
+
+        {/* Target Progress Bar */}
+        {targetKills && targetKills > 0 && (
+          <div className="px-6 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">Target Progress</span>
+              <span className="text-xs font-bold text-zinc-300">{operatorKills} / {targetKills}</span>
+            </div>
+            <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 transition-all duration-300 ease-out"
+                style={{ width: `${Math.min((operatorKills / targetKills) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Loadout Grid */}
         {!hideLoadout && (

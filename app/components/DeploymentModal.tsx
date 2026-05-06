@@ -10,11 +10,12 @@ interface DeploymentModalProps {
     operator: Operator | null;
     loadout: Loadout | null;
     matchType?: string | null;
+    targetKills?: number;
     onAccept: () => void;
     onReject: () => void;
 }
 
-export function DeploymentModal({ isOpen, operator, loadout, matchType, onAccept, onReject }: DeploymentModalProps) {
+export function DeploymentModal({ isOpen, operator, loadout, matchType, targetKills, onAccept, onReject }: DeploymentModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
     // Close on Escape key
@@ -54,8 +55,15 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, onAccept
 
                 {/* Content */}
                 <div className="p-6 flex flex-col items-center">
+                    {targetKills && (
+                        <div className="mb-4 px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-full">
+                            <span className="text-yellow-400 font-bold uppercase tracking-wider text-sm">
+                                Target: {targetKills} Kills
+                            </span>
+                        </div>
+                    )}
                     <div className="w-full mb-8">
-                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} isRolling={false} />
+                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} isRolling={false} targetKills={targetKills} operatorKills={0} />
                     </div>
 
                     <div className="flex gap-4 w-full">
