@@ -18,8 +18,8 @@ import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { OptionsRow } from './components/OptionsRow';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { MapAdvisor } from './components/MapAdvisor';
-import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole } from './data/operators';
-import { Operator, Loadout, MatchType } from './data/types';
+import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
+import { Operator, Loadout, MatchType, Platform } from './data/types';
 
 export default function Home() {
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
@@ -27,6 +27,7 @@ export default function Home() {
   const [currentOperator, setCurrentOperator] = usePersistedState<Operator | null>('xawars_currentOperator', null);
   const [currentLoadout, setCurrentLoadout] = usePersistedState<Loadout | null>('xawars_currentLoadout', null);
   const [currentMatchType, setCurrentMatchType] = usePersistedState<MatchType | null>('xawars_currentMatchType', null);
+  const [currentPlatform, setCurrentPlatform] = usePersistedState<Platform | null>('xawars_currentPlatform', null);
   const [currentTargetKills, setCurrentTargetKills] = usePersistedState<number>('xawars_currentTargetKills', 0);
   const [operatorKills, setOperatorKills] = usePersistedState<Record<string, number>>('xawars_operatorKills', {});
   const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
@@ -37,6 +38,7 @@ export default function Home() {
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
   const [pendingMatchType, setPendingMatchType] = useState<MatchType | null>(null);
+  const [pendingPlatform, setPendingPlatform] = useState<Platform | null>(null);
   const [pendingTargetKills, setPendingTargetKills] = useState<number>(0);
   const [pendingRole, setPendingRole] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,6 +71,7 @@ export default function Home() {
       const op = getRandomOperator();
       const loadout = generateLoadout(op);
       const matchType = getRandomMatchType();
+      const platform = matchType === 'Ranked' ? getRandomPlatform() : null;
       const targetKills = getRandomTargetKills();
       const role = showRoles ? getRandomRole(op) : '';
 
@@ -76,6 +79,7 @@ export default function Home() {
       setPendingOperator(op);
       setPendingLoadout(loadout);
       setPendingMatchType(matchType);
+      setPendingPlatform(platform);
       setPendingTargetKills(targetKills);
       setPendingRole(role);
 
@@ -96,6 +100,7 @@ export default function Home() {
     setCurrentOperator(pendingOperator);
     setCurrentLoadout(pendingLoadout);
     if (pendingMatchType) setCurrentMatchType(pendingMatchType);
+    if (pendingMatchType === 'Ranked') setCurrentPlatform(pendingPlatform);
     setCurrentTargetKills(pendingTargetKills);
     if (pendingRole) setCurrentRole(pendingRole);
 
@@ -111,6 +116,7 @@ export default function Home() {
       operator: pendingOperator,
       loadout: pendingLoadout,
       matchType: pendingMatchType || undefined,
+      platform: pendingMatchType === 'Ranked' ? pendingPlatform || undefined : undefined,
       targetKills: pendingTargetKills,
       role: pendingRole
     };
@@ -133,6 +139,7 @@ export default function Home() {
     setPendingOperator(null);
     setPendingLoadout(null);
     setPendingMatchType(null);
+    setPendingPlatform(null);
     setPendingTargetKills(0);
     setPendingRole('');
   };
@@ -144,6 +151,7 @@ export default function Home() {
       setCurrentOperator(null);
       setCurrentLoadout(null);
       setCurrentMatchType(null);
+      setCurrentPlatform(null);
       setCurrentTargetKills(0);
       setCurrentRole('');
       setOperatorKills({});
@@ -231,6 +239,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         operator={pendingOperator}
         loadout={pendingLoadout}
         matchType={pendingMatchType}
+        platform={pendingMatchType === 'Ranked' ? pendingPlatform : undefined}
         targetKills={pendingTargetKills}
         role={showRoles ? pendingRole : undefined}
         onAccept={handleAccept}
@@ -361,6 +370,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               operator={currentOperator}
               loadout={currentLoadout}
               matchType={currentMatchType}
+              platform={currentMatchType === 'Ranked' ? currentPlatform : undefined}
               isRolling={isRolling}
               targetKills={currentTargetKills}
               operatorKills={currentOperator ? (operatorKills[currentOperator.id] || 0) : 0}

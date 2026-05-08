@@ -2,6 +2,8 @@ export type Side = 'attacker' | 'defender';
 
 export type MatchType = 'Ranked' | 'Unranked' | 'Quick Match' | 'Deathmatch';
 
+export type Platform = 'PC' | 'Console';
+
 export interface Loadout {
   primary: string;
   secondary: string;
@@ -23,6 +25,7 @@ export interface Deployment {
   operator: Operator;
   loadout: Loadout;
   matchType?: MatchType;
+  platform?: Platform;
   targetKills: number;
   role?: string;
 }

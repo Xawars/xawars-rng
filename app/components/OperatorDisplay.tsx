@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Operator, Loadout } from '../data/types';
+import { Operator, Loadout, Platform } from '../data/types';
 import { getRoleColor, Role } from '../data/roles';
 import * as r6operators from 'r6operators';
 
@@ -9,6 +9,7 @@ interface OperatorDisplayProps {
   operator: Operator | null;
   loadout: Loadout | null;
   matchType?: string | null;
+  platform?: Platform | null;
   isRolling?: boolean;
   hideBg?: boolean;
   hideLoadout?: boolean;
@@ -17,7 +18,7 @@ interface OperatorDisplayProps {
   role?: string;
 }
 
-export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0, role }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, matchType, platform, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0, role }: OperatorDisplayProps) {
   // Reset image error state when operator changes
   const [bgError, setBgError] = useState(false);
 
@@ -78,6 +79,11 @@ export function OperatorDisplay({ operator, loadout, matchType, isRolling, hideB
               {matchType && (
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/50">
                   {matchType}
+                </span>
+              )}
+              {platform && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/50">
+                  {platform}
                 </span>
               )}
               {role && (
