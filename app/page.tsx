@@ -15,6 +15,7 @@ import { CreatorTools } from './components/CreatorTools';
 import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
 import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
+import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { MapAdvisor } from './components/MapAdvisor';
@@ -70,8 +71,18 @@ export default function Home() {
     setTimeout(() => {
       const op = getRandomOperator();
       const loadout = generateLoadout(op);
-      const matchType = getRandomMatchType();
-      const platform = matchType === 'Ranked' ? getRandomPlatform() : null;
+      
+      // Use selected match type or random
+      const matchType = currentMatchType || getRandomMatchType();
+      
+      // Use selected platform or random (only if Ranked or no specific match type selected)
+      let platform: Platform | null = null;
+      if (currentPlatform) {
+        platform = currentPlatform;
+      } else if (matchType === 'Ranked') {
+        platform = getRandomPlatform();
+      }
+      
       const targetKills = getRandomTargetKills();
       const role = showRoles ? getRandomRole(op) : '';
 
@@ -100,7 +111,7 @@ export default function Home() {
     setCurrentOperator(pendingOperator);
     setCurrentLoadout(pendingLoadout);
     if (pendingMatchType) setCurrentMatchType(pendingMatchType);
-    if (pendingMatchType === 'Ranked') setCurrentPlatform(pendingPlatform);
+    if (pendingPlatform) setCurrentPlatform(pendingPlatform);
     setCurrentTargetKills(pendingTargetKills);
     if (pendingRole) setCurrentRole(pendingRole);
 
@@ -351,14 +362,18 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             />
           </div>
 
-          {/* Match Type Selector */}
-          <MatchTypeSelector
-            currentType={currentMatchType}
-            currentPlatform={currentPlatform}
-            onRoll={(type) => setCurrentMatchType(type)}
-            onPlatformRoll={(platform) => setCurrentPlatform(platform)}
-            isRollingParent={isRolling}
-          />
+          {/* Match Type and Platform Selectors */}
+          <div className="flex flex-col gap-4">
+            <MatchTypeSelector
+              currentType={currentMatchType}
+              onSelect={(type) => setCurrentMatchType(type)}
+              isRollingParent={isRolling}
+            />
+            <PlatformSelector
+              currentPlatform={currentPlatform}
+              onSelect={(platform) => setCurrentPlatform(platform)}
+            />
+          </div>
 
           {/* Options Row */}
           <OptionsRow
