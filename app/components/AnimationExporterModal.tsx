@@ -48,7 +48,7 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
   const [exportMode, setExportMode] = useState<'matchType' | 'operator'>('operator');
   const [targetOperatorId, setTargetOperatorId] = useState<string>('random');
   const [targetMatchType, setTargetMatchType] = useState<string>('random');
-  const [targetPlatform, setTargetPlatform] = useState<string>('none');
+  const [targetPlatform, setTargetPlatform] = useState<string>('random');
   const [includeRole, setIncludeRole] = useState<boolean>(true);
   const [includeTarget, setIncludeTarget] = useState<boolean>(false);
   
@@ -390,7 +390,8 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
           matchType = targetMatchType;
         }
 
-        if (matchType === 'Ranked' && targetPlatform !== 'none') {
+        // Always use platform if selected (not 'none')
+        if (targetPlatform !== 'none') {
           platform = targetPlatform === 'random' ? getRandomPlatform() : targetPlatform;
         }
 
@@ -583,15 +584,14 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
                     </div>
 
                     <div className="flex-1 space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Platform (Ranked only)</label>
+                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Platform</label>
                         <select 
                             value={targetPlatform} 
                             onChange={(e) => setTargetPlatform(e.target.value)}
                             disabled={isRecording || isPreviewing}
                             className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white focus:border-yellow-500 outline-none"
                         >
-                            <option value="none">None</option>
-                            <option value="random">Random</option>
+                            <option value="random">Random (50/50)</option>
                             <option value="PC">PC</option>
                             <option value="Console">Console</option>
                         </select>
