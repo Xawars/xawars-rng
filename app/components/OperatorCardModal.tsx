@@ -46,6 +46,7 @@ export function OperatorCardModal({ item, onClose }: OperatorCardModalProps) {
             operator={item.operator}
             loadout={item.loadout}
             matchType={item.matchType}
+            platform={item.platform}
             isRolling={false}
             targetKills={item.targetKills}
             operatorKills={0}
