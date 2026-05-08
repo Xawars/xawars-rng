@@ -1,26 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, Shuffle } from 'lucide-react';
+import { Target, Shuffle, Monitor, Gamepad2 } from 'lucide-react';
 import { Button } from './ui/Button';
-import { MatchType } from '../data/types';
-import { MATCH_TYPES, getRandomMatchType } from '../data/operators';
+import { MatchType, Platform } from '../data/types';
+import { MATCH_TYPES, getRandomMatchType, getRandomPlatform } from '../data/operators';
 
 interface MatchTypeSelectorProps {
   currentType: MatchType | null;
+  currentPlatform: Platform | null;
   onRoll: (type: MatchType) => void;
+  onPlatformRoll: (platform: Platform) => void;
   isRollingParent?: boolean;
 }
 
-export function MatchTypeSelector({ currentType, onRoll, isRollingParent }: MatchTypeSelectorProps) {
+export function MatchTypeSelector({ currentType, currentPlatform, onRoll, onPlatformRoll, isRollingParent }: MatchTypeSelectorProps) {
   const [displayType, setDisplayType] = useState<string>(currentType || 'ANY TYPE');
+  const [displayPlatform, setDisplayPlatform] = useState<string>(currentPlatform || '');
   const [isRolling, setIsRolling] = useState(false);
 
   useEffect(() => {
     if (!isRolling) {
       setDisplayType(currentType || 'ANY TYPE');
+      setDisplayPlatform(currentPlatform || '');
     }
-  }, [currentType, isRolling]);
+  }, [currentType, currentPlatform, isRolling]);
 
   const handleRoll = () => {
     if (isRolling || isRollingParent) return;
@@ -28,8 +32,6 @@ export function MatchTypeSelector({ currentType, onRoll, isRollingParent }: Matc
     setIsRolling(true);
     let rolls = 0;
     const maxRolls = 15;
-    
-    // Play a ticking sound here if we wanted
     
     const interval = setInterval(() => {
       setDisplayType(MATCH_TYPES[Math.floor(Math.random() * MATCH_TYPES.length)]);
@@ -39,6 +41,17 @@ export function MatchTypeSelector({ currentType, onRoll, isRollingParent }: Matc
         const finalType = getRandomMatchType();
         setDisplayType(finalType);
         onRoll(finalType);
+        
+        // If Ranked, also roll platform
+        if (finalType === 'Ranked') {
+          const finalPlatform = getRandomPlatform();
+          setDisplayPlatform(finalPlatform);
+          onPlatformRoll(finalPlatform);
+        } else {
+          setDisplayPlatform('');
+          onPlatformRoll('' as Platform);
+        }
+        
         setIsRolling(false);
       }
     }, 50);
@@ -57,7 +70,7 @@ export function MatchTypeSelector({ currentType, onRoll, isRollingParent }: Matc
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-0.5">Match Type</p>
-          <div className="h-6 overflow-hidden relative">
+          <div className="h-6 overflow-hidden relative flex items-center gap-2">
             <p 
               className={`text-lg font-black uppercase tracking-tight transition-all duration-75 ${
                 isRolling 
@@ -67,6 +80,19 @@ export function MatchTypeSelector({ currentType, onRoll, isRollingParent }: Matc
             >
               {displayType}
             </p>
+            {displayPlatform && (
+              <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${
+                displayPlatform === 'PC' 
+                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' 
+                  : 'bg-purple-500/20 text-purple-400 border-purple-500/50'
+              }`}>
+                {displayPlatform === 'PC' ? (
+                  <span className="flex items-center gap-1"><Monitor className="w-3 h-3" /> PC</span>
+                ) : (
+                  <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> CON</span>
+                )}
+              </span>
+            )}
           </div>
         </div>
       </div>

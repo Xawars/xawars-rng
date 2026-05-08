@@ -354,7 +354,9 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           {/* Match Type Selector */}
           <MatchTypeSelector
             currentType={currentMatchType}
+            currentPlatform={currentPlatform}
             onRoll={(type) => setCurrentMatchType(type)}
+            onPlatformRoll={(platform) => setCurrentPlatform(platform)}
             isRollingParent={isRolling}
           />
 

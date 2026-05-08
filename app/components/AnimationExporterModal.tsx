@@ -48,7 +48,7 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
   const [exportMode, setExportMode] = useState<'matchType' | 'operator'>('operator');
   const [targetOperatorId, setTargetOperatorId] = useState<string>('random');
   const [targetMatchType, setTargetMatchType] = useState<string>('random');
-  const [targetPlatform, setTargetPlatform] = useState<string>('random');
+  const [targetPlatform, setTargetPlatform] = useState<string>('any');
   const [includeRole, setIncludeRole] = useState<boolean>(true);
   const [includeTarget, setIncludeTarget] = useState<boolean>(false);
   
@@ -384,15 +384,32 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
         loadout = generateLoadout(finalOp);
 
         // Generate match type, platform, role, and target kills
-        if (targetMatchType === 'random') {
-          matchType = getRandomMatchType();
-        } else if (targetMatchType !== 'none') {
-          matchType = targetMatchType;
-        }
-
-        // Always use platform if selected (not 'none')
-        if (targetPlatform !== 'none') {
-          platform = targetPlatform === 'random' ? getRandomPlatform() : targetPlatform;
+        // Handle combined platform_matchType format (e.g., "pc_ranked", "console_unranked")
+        if (targetPlatform !== 'any') {
+          const [platformPart, matchPart] = targetPlatform.split('_');
+          platform = platformPart === 'pc' ? 'PC' : 'Console';
+          // If match type is also being randomized, use the platform-specific match type
+          if (targetMatchType === 'random') {
+            // Map platform_matchType to match type
+            const matchTypeMap: Record<string, string> = {
+              'ranked': 'Ranked',
+              'unranked': 'Unranked',
+              'quick': 'Quick Match',
+              'deathmatch': 'Deathmatch'
+            };
+            matchType = matchTypeMap[matchPart] || getRandomMatchType();
+          } else if (targetMatchType !== 'none') {
+            matchType = targetMatchType;
+          }
+        } else {
+          // Any platform - random match type
+          if (targetMatchType === 'random') {
+            matchType = getRandomMatchType();
+          } else if (targetMatchType !== 'none') {
+            matchType = targetMatchType;
+          }
+          // Any platform can still have platform badge randomly
+          platform = getRandomPlatform();
         }
 
         if (includeRole && finalOp) {
@@ -584,16 +601,22 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
                     </div>
 
                     <div className="flex-1 space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Platform</label>
+                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Platform & Match Type</label>
                         <select 
                             value={targetPlatform} 
                             onChange={(e) => setTargetPlatform(e.target.value)}
                             disabled={isRecording || isPreviewing}
                             className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white focus:border-yellow-500 outline-none"
                         >
-                            <option value="random">Random (50/50)</option>
-                            <option value="PC">PC</option>
-                            <option value="Console">Console</option>
+                            <option value="any">Any Platform (Random)</option>
+                            <option value="pc_ranked">PC - Ranked</option>
+                            <option value="pc_unranked">PC - Unranked</option>
+                            <option value="pc_quick">PC - Quick Match</option>
+                            <option value="pc_deathmatch">PC - Deathmatch</option>
+                            <option value="console_ranked">Console - Ranked</option>
+                            <option value="console_unranked">Console - Unranked</option>
+                            <option value="console_quick">Console - Quick Match</option>
+                            <option value="console_deathmatch">Console - Deathmatch</option>
                         </select>
                     </div>
 
