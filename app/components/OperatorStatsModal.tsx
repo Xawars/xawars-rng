@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { X, ArrowUpDown, Clock, TrendingUp, Sword } from 'lucide-react';
+import { X, ArrowUpDown, Clock, TrendingUp, Sword, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import { Button } from './ui/Button';
 import { OperatorIcon } from './OperatorIcon';
 import { HistoryItem } from './HistoryList';
@@ -10,7 +11,7 @@ import { useOperatorStats, sortStats, SortMode, OperatorStats } from '../hooks/u
 interface OperatorStatsModalProps {
   history: HistoryItem[];
   operatorKills: Record<string, number>;
-  globalDeaths: number;
+  operatorDeaths: Record<string, number>;
   onSelect: (item: HistoryItem) => void;
   onClose: () => void;
 }
@@ -42,15 +43,37 @@ function OperatorRow({
   stat,
   history,
   onSelect,
+  operatorKills,
+  operatorDeaths,
 }: {
   stat: OperatorStats;
   history: HistoryItem[];
   onSelect: (item: HistoryItem) => void;
+  operatorKills: Record<string, number>;
+  operatorDeaths: Record<string, number>;
 }) {
   const lastItem = useMemo(
     () => history.find(h => h.operator.id === stat.id && h.id === stat.lastUsed),
     [history, stat.id, stat.lastUsed]
   );
+
+  const kills = operatorKills[stat.id] || 0;
+  const deaths = operatorDeaths[stat.id] || 0;
+
+  const handleExport = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const node = document.getElementById(`export-card-${stat.id}`);
+    if (!node) return;
+    try {
+      const dataUrl = await toPng(node, { cacheBust: true, backgroundColor: '#09090b' });
+      const link = document.createElement('a');
+      link.download = `xawars-${stat.id}-stats.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Export failed', err);
+    }
+  };
 
   return (
     <div
@@ -66,7 +89,16 @@ function OperatorRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-zinc-200 uppercase tracking-wide">{stat.name}</span>
-          <KDBadge kd={stat.kd} />
+          <div className="flex items-center gap-2">
+            <KDBadge kd={stat.kd} />
+            <button
+              onClick={handleExport}
+              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-yellow-500 transition-colors"
+              title="Export card"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-[9px] font-bold uppercase tracking-wider ${stat.side === 'attacker' ? 'text-orange-500/70' : 'text-blue-500/70'}`}>
@@ -84,6 +116,106 @@ function OperatorRow({
             progress={stat.objectiveProgress}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+function ExportableCard({
+  stat,
+  kills,
+  deaths,
+  lastItem,
+}: {
+  stat: OperatorStats;
+  kills: number;
+  deaths: number;
+  lastItem: HistoryItem | undefined;
+}) {
+  if (!lastItem) return null;
+  
+  return (
+    <div
+      id={`export-card-${stat.id}`}
+      className="absolute top-0 left-0 w-[400px] p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl -z-50 opacity-0 pointer-events-none"
+    >
+      <div className="flex items-start gap-4">
+        <div className={`h-20 w-20 flex-shrink-0 rounded-lg flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>
+          <OperatorIcon id={stat.id} className="w-full h-full drop-shadow-lg">
+            {stat.name[0]}
+          </OperatorIcon>
+        </div>
+        
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xl font-black text-white uppercase tracking-wide">{stat.name}</span>
+            <KDBadge kd={stat.kd} />
+          </div>
+          
+          <div className="flex items-center gap-2 mb-3">
+            <span className={`text-xs font-bold uppercase tracking-wider ${stat.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
+              {stat.side}
+            </span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-xs text-zinc-500 font-medium">{stat.deployments} deploy{stat.deployments !== 1 ? 's' : ''}</span>
+            {lastItem.matchType && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className="text-xs text-zinc-400">{lastItem.matchType}</span>
+              </>
+            )}
+            {lastItem.platform && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className="text-xs text-zinc-400">{lastItem.platform}</span>
+              </>
+            )}
+          </div>
+          
+          {lastItem.role && (
+            <div className="text-xs text-yellow-500 font-medium mb-2 uppercase tracking-wide">
+              {lastItem.role}
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-green-400 font-bold">{kills} K</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-red-400 font-bold">{deaths} D</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-3 pt-3 border-t border-zinc-800">
+        <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mb-1">Objective</div>
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-zinc-300 font-medium">{stat.objectiveKills} / {stat.objectiveTarget}</span>
+          <span className="text-zinc-500 font-bold">{Math.round(stat.objectiveProgress)}%</span>
+        </div>
+        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-yellow-500 to-green-500"
+            style={{ width: `${Math.min(stat.objectiveProgress, 100)}%` }}
+          />
+        </div>
+      </div>
+      
+      <div className="mt-3 pt-3 border-t border-zinc-800">
+        <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mb-1">Loadout</div>
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-600 uppercase w-16">Primary</span>
+            <span className="text-xs text-zinc-300">{lastItem.loadout.primary}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-600 uppercase w-16">Secondary</span>
+            <span className="text-xs text-zinc-300">{lastItem.loadout.secondary}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-600 uppercase w-16">Gadget</span>
+            <span className="text-xs text-zinc-300">{lastItem.loadout.gadget}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -115,7 +247,7 @@ function SortButton({
 export function OperatorStatsModal({
   history,
   operatorKills,
-  globalDeaths,
+  operatorDeaths,
   onSelect,
   onClose,
 }: OperatorStatsModalProps) {
@@ -130,7 +262,7 @@ export function OperatorStatsModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const stats = useOperatorStats(history, operatorKills, globalDeaths);
+  const stats = useOperatorStats(history, operatorKills, operatorDeaths);
   const sorted = useMemo(() => sortStats(stats, sortMode), [stats, sortMode]);
 
   return (
@@ -182,9 +314,29 @@ export function OperatorStatsModal({
                 stat={stat}
                 history={history}
                 onSelect={onSelect}
+                operatorKills={operatorKills}
+                operatorDeaths={operatorDeaths}
               />
             ))
           )}
+        </div>
+
+        {/* Hidden export cards - rendered off-screen for image capture */}
+        <div className="absolute -left-[9999px] top-0 w-[400px] space-y-4">
+          {sorted.map(stat => {
+            const lastItem = history.find(h => h.operator.id === stat.id && h.id === stat.lastUsed);
+            const kills = operatorKills[stat.id] || 0;
+            const deaths = operatorDeaths[stat.id] || 0;
+            return (
+              <ExportableCard
+                key={stat.id}
+                stat={stat}
+                kills={kills}
+                deaths={deaths}
+                lastItem={lastItem}
+              />
+            );
+          })}
         </div>
 
         <div className="px-4 py-3 border-t border-white/5 text-center flex-shrink-0">
