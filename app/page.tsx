@@ -212,6 +212,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
     }
   };
 
+  const handleKillDecrement = () => {
+    setKills(k => Math.max(0, k - 1));
+    if (currentOperator) {
+      setOperatorKills(prev => ({
+        ...prev,
+        [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
+      }));
+    }
+  };
+
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
 
   return (
@@ -365,6 +375,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                   });
                 }
               }}
+              onDecrement={handleKillDecrement}
             />
             <StatCounter
               label="Deaths"
