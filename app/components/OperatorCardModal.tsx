@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { X, Download } from 'lucide-react';
 import { Button } from './ui/Button';
 import { OperatorDisplay } from './OperatorDisplay';
 import { HistoryItem } from './HistoryList';
+import { toPng } from 'html-to-image';
 
 interface OperatorCardModalProps {
   item: HistoryItem | null;
@@ -15,6 +16,26 @@ interface OperatorCardModalProps {
 
 export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose }: OperatorCardModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!modalRef.current || !item) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(modalRef.current, {
+        cacheBust: true,
+        backgroundColor: '#09090b',
+      });
+      const link = document.createElement('a');
+      link.download = `xawars-${item.operator.id}-card.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Export failed', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,6 +58,7 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         ref={modalRef}
+        id="operator-card-export"
         className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300"
       >
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
@@ -56,9 +78,20 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} icon={X}>
-            <span className="sr-only">Close</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting}
+              title="Export as image"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} icon={X}>
+              <span className="sr-only">Close</span>
+            </Button>
+          </div>
         </div>
 
         <div className="p-6">
