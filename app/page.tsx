@@ -511,6 +511,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         {/* History Item Modal */}
         <OperatorCardModal
           item={selectedHistoryItem}
+          operatorKills={operatorKills}
+          operatorDeaths={operatorDeaths}
           onClose={() => setSelectedHistoryItem(null)}
         />
 
