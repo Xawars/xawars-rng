@@ -32,6 +32,7 @@ export default function Home() {
   const [currentPlatform, setCurrentPlatform] = usePersistedState<Platform | null>('xawars_currentPlatform', null);
   const [currentTargetKills, setCurrentTargetKills] = usePersistedState<number>('xawars_currentTargetKills', 0);
   const [operatorKills, setOperatorKills] = usePersistedState<Record<string, number>>('xawars_operatorKills', {});
+  const [operatorDeaths, setOperatorDeaths] = usePersistedState<Record<string, number>>('xawars_operatorDeaths', {});
   const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
@@ -117,11 +118,19 @@ export default function Home() {
     setCurrentTargetKills(pendingTargetKills);
     if (pendingRole) setCurrentRole(pendingRole);
 
-    // Ensure the operator has a kill counter entry (reset to 0 for fresh deployment)
+    // Ensure the operator has a kill/death counter entry (reset to 0 for fresh deployment)
     setOperatorKills(prev => ({
       ...prev,
       [pendingOperator.id]: 0
     }));
+    setOperatorDeaths(prev => ({
+      ...prev,
+      [pendingOperator.id]: 0
+    }));
+
+    // Reset global kills/deaths to match the operator's counters
+    setKills(0);
+    setDeaths(0);
 
     // Add to history
     const newHistoryItem: HistoryItem = {
@@ -168,6 +177,7 @@ export default function Home() {
       setCurrentTargetKills(0);
       setCurrentRole('');
       setOperatorKills({});
+      setOperatorDeaths({});
       setHistory([]);
       setTargetComplete(false);
     }
@@ -181,18 +191,24 @@ export default function Home() {
     setCurrentMatchType(null);
     setCurrentTargetKills(0);
     setCurrentRole('');
-    setOperatorKills({});
-    setHistory([]);
+setOperatorKills({});
+      setOperatorDeaths({});
+      setHistory([]);
     setTargetComplete(false);
   }
 
   const restoreFromHistory = (item: HistoryItem) => {
+    const opId = item.operator.id;
     setCurrentOperator(item.operator);
     setCurrentLoadout(item.loadout);
     if (item.matchType) setCurrentMatchType(item.matchType as MatchType);
     if (item.platform) setCurrentPlatform(item.platform);
     setCurrentTargetKills(item.targetKills || 0);
     if (item.role) setCurrentRole(item.role);
+
+    // Load per-operator kills and deaths
+    setKills(operatorKills[opId] || 0);
+    setDeaths(operatorDeaths[opId] || 0);
 
     setTargetComplete(false);
     setIsStatsModalOpen(false);
@@ -224,6 +240,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
   const handleDeathDecrement = () => {
     setDeaths(d => Math.max(0, d - 1));
+    if (currentOperator) {
+      setOperatorDeaths(prev => ({
+        ...prev,
+        [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
+      }));
+    }
   };
 
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
@@ -386,6 +408,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               value={deaths}
               onIncrement={() => {
                 setDeaths(d => d + 1);
+                if (currentOperator) {
+                  setOperatorDeaths(prev => ({
+                    ...prev,
+                    [currentOperator.id]: (prev[currentOperator.id] || 0) + 1
+                  }));
+                }
                 playDeath();
               }}
               onDecrement={handleDeathDecrement}
