@@ -72,26 +72,6 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
         {/* Operator Header */}
         <div className="p-6 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-bold uppercase tracking-widest block ${operator.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
-                {operator.side}
-              </span>
-              {matchType && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/50">
-                  {matchType}
-                </span>
-              )}
-              {platform && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/50">
-                  {platform}
-                </span>
-              )}
-              {role && (
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${getRoleColor(role as Role)}/30 ${getRoleColor(role as Role).replace('bg-', 'text-')}`}>
-                  {role}
-                </span>
-              )}
-            </div>
             <h2 className="text-4xl font-black text-white uppercase tracking-tighter drop-shadow-md">
               {operator.name}
             </h2>
