@@ -62,17 +62,6 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
             <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
               {item.operator.name}
             </h2>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-green-400 font-bold">{kills} K</span>
-              <span className="text-zinc-500">/</span>
-              <span className="text-red-400 font-bold">{deaths} D</span>
-              {kd !== null && (
-                <>
-                  <span className="text-zinc-500">·</span>
-                  <span className={`font-black ${kdColor}`}>{kd.toFixed(2)} KD</span>
-                </>
-              )}
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -111,6 +100,16 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
               <>
                 <span className="text-zinc-600">·</span>
                 <span className="text-yellow-500">{item.role}</span>
+              </>
+            )}
+            <span className="text-zinc-600 ml-auto">·</span>
+            <span className="text-green-400 font-bold">{kills} K</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-red-400 font-bold">{deaths} D</span>
+            {kd !== null && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className={`font-black ${kdColor}`}>{kd.toFixed(2)} KD</span>
               </>
             )}
           </div>
