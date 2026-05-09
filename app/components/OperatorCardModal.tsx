@@ -90,7 +90,30 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
           </div>
         </div>
 
-        <div id="operator-card-export-content">
+        <div id="operator-card-export-content" className="flex flex-col">
+          <div className="px-4 py-2 bg-zinc-800/50 flex items-center gap-2 text-xs border-b border-zinc-700/50">
+            <span className={`font-bold uppercase ${item.operator.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
+              {item.operator.side}
+            </span>
+            {item.matchType && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className="text-zinc-400">{item.matchType}</span>
+              </>
+            )}
+            {item.platform && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className="text-zinc-400">{item.platform}</span>
+              </>
+            )}
+            {item.role && (
+              <>
+                <span className="text-zinc-600">·</span>
+                <span className="text-yellow-500">{item.role}</span>
+              </>
+            )}
+          </div>
           <div className="p-6">
             <OperatorDisplay
               operator={item.operator}
