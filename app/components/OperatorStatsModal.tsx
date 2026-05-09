@@ -322,7 +322,7 @@ export function OperatorStatsModal({
         </div>
 
         {/* Hidden export cards - rendered off-screen for image capture */}
-        <div className="absolute -left-[9999px] top-0 w-[400px] space-y-4">
+        <div className="fixed bottom-0 left-0 w-[400px] opacity-0 pointer-events-none space-y-4">
           {sorted.map(stat => {
             const lastItem = history.find(h => h.operator.id === stat.id && h.id === stat.lastUsed);
             const kills = operatorKills[stat.id] || 0;
