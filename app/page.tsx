@@ -222,6 +222,10 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
     }
   };
 
+  const handleDeathDecrement = () => {
+    setDeaths(d => Math.max(0, d - 1));
+  };
+
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
 
   return (
@@ -384,6 +388,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                 setDeaths(d => d + 1);
                 playDeath();
               }}
+              onDecrement={handleDeathDecrement}
               variant="danger"
             />
           </div>
