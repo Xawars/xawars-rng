@@ -1,25 +1,37 @@
 import React from 'react';
 import { Button } from './ui/Button';
-import { Plus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 
 interface StatCounterProps {
   label: string;
   value: number;
   onIncrement: () => void;
+  onDecrement?: () => void;
   variant?: 'primary' | 'danger';
 }
 
-export function StatCounter({ label, value, onIncrement, variant = 'primary' }: StatCounterProps) {
+export function StatCounter({ label, value, onIncrement, onDecrement, variant = 'primary' }: StatCounterProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <span className="text-white/50 text-xs font-bold uppercase tracking-widest">{label}</span>
-      <div className="flex items-center gap-4 bg-white/5 p-2 rounded-lg border border-white/10">
+      <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
+        {onDecrement && (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={onDecrement}
+            icon={Minus}
+            aria-label={`Subtract ${label}`}
+          >
+            Sub
+          </Button>
+        )}
         <span className="text-3xl font-black min-w-[3ch] text-center font-mono text-white">
           {value}
         </span>
-        <Button 
-          variant={variant} 
-          size="sm" 
+        <Button
+          variant={variant}
+          size="sm"
           onClick={onIncrement}
           icon={Plus}
           aria-label={`Add ${label}`}
