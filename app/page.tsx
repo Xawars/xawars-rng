@@ -18,6 +18,7 @@ import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
 import { OperatorCardModal } from './components/OperatorCardModal';
+import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { MapAdvisor } from './components/MapAdvisor';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
 import { Operator, Loadout, MatchType, Platform } from './data/types';
@@ -48,6 +49,7 @@ export default function Home() {
   const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor'>('roulette');
 
   const [isRolling, setIsRolling] = useState(false);
@@ -183,6 +185,19 @@ export default function Home() {
     setHistory([]);
     setTargetComplete(false);
   }
+
+  const restoreFromHistory = (item: HistoryItem) => {
+    setCurrentOperator(item.operator);
+    setCurrentLoadout(item.loadout);
+    if (item.matchType) setCurrentMatchType(item.matchType as MatchType);
+    if (item.platform) setCurrentPlatform(item.platform);
+    setCurrentTargetKills(item.targetKills || 0);
+    if (item.role) setCurrentRole(item.role);
+
+    setTargetComplete(false);
+    setIsStatsModalOpen(false);
+    playReveal(item.operator.side === 'defender');
+  };
 
   const handleCopySummary = async () => {
     const summary = `Xawars RNG Run
@@ -436,6 +451,15 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         {/* Right Column - History - Hide in streamer mode */}
         {!isStreamerMode && (
           <div className="w-80 pt-[72px]">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsStatsModalOpen(true)}
+              className="mb-4 w-full"
+              icon={Dices}
+            >
+              Select from History
+            </Button>
             <HistoryList history={history} onItemClick={setSelectedHistoryItem} />
           </div>
         )}
@@ -445,6 +469,17 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           item={selectedHistoryItem}
           onClose={() => setSelectedHistoryItem(null)}
         />
+
+        {/* Operator Stats / Selection Modal */}
+        {isStatsModalOpen && (
+          <OperatorStatsModal
+            history={history}
+            operatorKills={operatorKills}
+            globalDeaths={deaths}
+            onSelect={restoreFromHistory}
+            onClose={() => setIsStatsModalOpen(false)}
+          />
+        )}
 
       </div>
     </main>
