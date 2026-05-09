@@ -519,7 +519,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           <OperatorStatsModal
             history={history}
             operatorKills={operatorKills}
-            globalDeaths={deaths}
+            operatorDeaths={operatorDeaths}
             onSelect={restoreFromHistory}
             onClose={() => setIsStatsModalOpen(false)}
           />

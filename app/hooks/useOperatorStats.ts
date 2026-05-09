@@ -19,7 +19,7 @@ export type SortMode = 'recent' | 'kd' | 'kills' | 'alpha';
 export function useOperatorStats(
   history: HistoryItem[],
   operatorKills: Record<string, number>,
-  globalDeaths: number
+  operatorDeaths: Record<string, number>
 ): OperatorStats[] {
   const opMap = new Map<string, OperatorStats>();
 
@@ -51,13 +51,15 @@ export function useOperatorStats(
     }
   }
 
+  for (const [id, deaths] of Object.entries(operatorDeaths)) {
+    if (opMap.has(id)) {
+      opMap.get(id)!.totalDeaths += deaths;
+    }
+  }
+
   const stats = Array.from(opMap.values());
-  const totalKillsAll = stats.reduce((sum, s) => sum + s.totalKills, 0);
 
   for (const stat of stats) {
-    if (totalKillsAll > 0) {
-      stat.totalDeaths = Math.round((stat.totalKills / totalKillsAll) * globalDeaths);
-    }
     stat.kd = stat.totalDeaths > 0
       ? Math.round((stat.totalKills / stat.totalDeaths) * 100) / 100
       : null;
