@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Download } from 'lucide-react';
 import { Button } from './ui/Button';
 import { OperatorDisplay } from './OperatorDisplay';
@@ -15,14 +15,14 @@ interface OperatorCardModalProps {
 }
 
 export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose }: OperatorCardModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!modalRef.current || !item) return;
+    const exportNode = document.getElementById('operator-card-export-content');
+    if (!exportNode || !item) return;
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(modalRef.current, {
+      const dataUrl = await toPng(exportNode, {
         cacheBust: true,
         backgroundColor: '#09090b',
       });
@@ -56,11 +56,7 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div
-        ref={modalRef}
-        id="operator-card-export"
-        className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300"
-      >
+      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
@@ -94,17 +90,19 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
           </div>
         </div>
 
-        <div className="p-6">
-          <OperatorDisplay
-            operator={item.operator}
-            loadout={item.loadout}
-            matchType={item.matchType}
-            platform={item.platform}
-            isRolling={false}
-            targetKills={item.targetKills}
-            operatorKills={kills}
-            role={item.role}
-          />
+        <div id="operator-card-export-content">
+          <div className="p-6">
+            <OperatorDisplay
+              operator={item.operator}
+              loadout={item.loadout}
+              matchType={item.matchType}
+              platform={item.platform}
+              isRolling={false}
+              targetKills={item.targetKills}
+              operatorKills={kills}
+              role={item.role}
+            />
+          </div>
         </div>
       </div>
     </div>
