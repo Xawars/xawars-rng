@@ -8,10 +8,12 @@ import { HistoryItem } from './HistoryList';
 
 interface OperatorCardModalProps {
   item: HistoryItem | null;
+  operatorKills: Record<string, number>;
+  operatorDeaths: Record<string, number>;
   onClose: () => void;
 }
 
-export function OperatorCardModal({ item, onClose }: OperatorCardModalProps) {
+export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose }: OperatorCardModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +28,11 @@ export function OperatorCardModal({ item, onClose }: OperatorCardModalProps) {
 
   if (!item) return null;
 
+  const kills = operatorKills[item.operator.id] || 0;
+  const deaths = operatorDeaths[item.operator.id] || 0;
+  const kd = deaths > 0 ? Math.round((kills / deaths) * 100) / 100 : null;
+  const kdColor = kd !== null && kd >= 1 ? 'text-green-400' : 'text-red-400';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div
@@ -33,9 +40,22 @@ export function OperatorCardModal({ item, onClose }: OperatorCardModalProps) {
         className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300"
       >
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
-            {item.operator.name}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
+              {item.operator.name}
+            </h2>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-green-400 font-bold">{kills} K</span>
+              <span className="text-zinc-500">/</span>
+              <span className="text-red-400 font-bold">{deaths} D</span>
+              {kd !== null && (
+                <>
+                  <span className="text-zinc-500">·</span>
+                  <span className={`font-black ${kdColor}`}>{kd.toFixed(2)} KD</span>
+                </>
+              )}
+            </div>
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose} icon={X}>
             <span className="sr-only">Close</span>
           </Button>
@@ -49,7 +69,7 @@ export function OperatorCardModal({ item, onClose }: OperatorCardModalProps) {
             platform={item.platform}
             isRolling={false}
             targetKills={item.targetKills}
-            operatorKills={0}
+            operatorKills={kills}
             role={item.role}
           />
         </div>
