@@ -8,7 +8,7 @@ import { useSoundContext } from './context/SoundContext';
 import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { StatCounter } from './components/StatCounter';
-import { FinalScreen } from './components/FinalScreen';
+
 import { HistoryList, HistoryItem } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
 import { CreatorTools } from './components/CreatorTools';
@@ -56,10 +56,10 @@ export default function Home() {
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
 
-  const { playRoll, stopRoll, playReveal, playKill, playDeath, playGoal } = useAudioFeedback();
+  const { playRoll, stopRoll, playReveal } = useAudioFeedback();
   const { isMuted, toggleMute } = useSoundContext();
 
-  const isComplete = kills >= 100;
+  
 
   // Reset wallpaper error when operator changes
   useEffect(() => {
@@ -145,7 +145,7 @@ export default function Home() {
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
     // Play reveal sound
-    playReveal(pendingOperator.side === 'defender');
+    playReveal();
 
     // Close modal and clear pending
     setIsModalOpen(false);
@@ -212,7 +212,7 @@ setOperatorKills({});
 
     setTargetComplete(false);
     setIsStatsModalOpen(false);
-    playReveal(item.operator.side === 'defender');
+    playReveal();
   };
 
   const handleCopySummary = async () => {
@@ -308,14 +308,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         onReject={handleReject}
       />
 
-      {/* Final Screen Overlay */}
-      {isComplete && (
-        <FinalScreen
-          kills={kills}
-          deaths={deaths}
-          onReset={handleFullReset}
-        />
-      )}
+      
 
       {/* Grid layout container */}
       <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] gap-6 max-w-[1400px] mx-auto pb-20">
@@ -378,12 +371,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               label="Kills"
               value={kills}
               onIncrement={() => {
-                setKills(k => {
-                  const newVal = k + 1;
-                  if (newVal === 100) playGoal();
-                  else playKill();
-                  return newVal;
-                });
+                setKills(k => k + 1);
 
                 // Track operator kills
                 if (currentOperator) {
@@ -414,7 +402,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                     [currentOperator.id]: (prev[currentOperator.id] || 0) + 1
                   }));
                 }
-                playDeath();
               }}
               onDecrement={handleDeathDecrement}
               variant="danger"
@@ -475,18 +462,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
           </Button>
 
-          {/* Footer info - Hide in streamer mode */}
-          {!isStreamerMode && (
-            <div className="mt-8 text-center">
-              <p className="text-xs text-zinc-600 uppercase tracking-widest font-bold">Goal: 100 Kills</p>
-              <div className="w-full bg-zinc-900 h-1.5 mt-2 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-yellow-500 transition-all duration-500 ease-out"
-                  style={{ width: `${Math.min(kills, 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
+          
             </>
           )}
 
