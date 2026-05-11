@@ -19,6 +19,10 @@ export interface MapData {
 export interface MapSiteData {
   defense: OperatorRecommendation[];
   attack: OperatorRecommendation[];
+  strategyTips?: {
+    defense?: string;
+    attack?: string;
+  };
 }
 
 export const MAPS: MapData[] = [
@@ -111,6 +115,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'thatcher', reason: 'Support for hard breachers with EMPs', importance: 'secondary' },
       { operatorId: 'montagne', reason: 'Shield for pushing main hallway', importance: 'niche' },
     ],
+    strategyTips: {
+      defense: 'Hold long corridors with Mira mirrors and deny plant with Smoke. Use utility to slow the push through garage and connector.',
+      attack: 'Open garage wall with hard breach, then use vertical play from above to clear anchors. Coordinate EMP support for clean breach.',
+    },
   },
   'bank-ceo': {
     defense: [
@@ -125,6 +133,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'buck', reason: 'Soft breach from floor below', importance: 'secondary' },
       { operatorId: 'zofia', reason: 'Soft breach and concussion utility', importance: 'secondary' },
     ],
+    strategyTips: {
+      defense: 'Bandit trick the meeting room walls and use ADS to deny utility. Hold angles from CEO with Valkyrie intel.',
+      attack: 'Open the main wall to CEO with Thermite, then use vertical play from below with Buck to flush out anchors.',
+    },
   },
   'bank-teller': {
     defense: [
@@ -225,6 +237,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'ash', reason: 'Quick breaching for main entry', importance: 'primary' },
       { operatorId: 'montagne', reason: 'Shield for hallway push', importance: 'secondary' },
     ],
+    strategyTips: {
+      defense: 'Bandit trick the cash room walls and use ADS to deny grenades. Hold gym with crossfire angles.',
+      attack: 'Open cash room wall and push from multiple angles. Use shield to draw attention while teammates flank.',
+    },
   },
   'clubhouse-church': {
     defense: [
@@ -275,6 +291,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'hibana', reason: 'Hatch opening for vertical play', importance: 'primary' },
       { operatorId: 'ace', reason: 'Reliable breach for multiple points', importance: 'secondary' },
     ],
+    strategyTips: {
+      defense: 'Use Mira mirrors to control the long hallway and deny plant with Smoke. Anchor in laundry with crossfire.',
+      attack: 'Open boiler room walls and use vertical play from kitchen hatch. Coordinate hard breach with EMP support.',
+    },
   },
   'oregon-dorms': {
     defense: [
@@ -375,6 +395,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'ash', reason: 'Quick breach for main entry', importance: 'primary' },
       { operatorId: 'sledge', reason: 'Soft breach from floor above', importance: 'secondary' },
     ],
+    strategyTips: {
+      defense: 'Control kitchen with Mira mirrors and deny plant with Smoke. Use Goyo shields to slow the push from bakery.',
+      attack: 'Open kitchen walls with Thermite and use vertical play from reading room above. Clear utility before pushing.',
+    },
   },
   'kafe-museum': {
     defense: [
@@ -413,6 +437,10 @@ export const MAP_SITE_DATA: Record<string, MapSiteData> = {
       { operatorId: 'hibana', reason: 'Hatch openings for vertical play', importance: 'primary' },
       { operatorId: 'ace', reason: 'Reliable breach for multiple points', importance: 'secondary' },
     ],
+    strategyTips: {
+      defense: 'Deny plant with Smoke and use Echo drones to disrupt pushes from stairs. Gu mines slow the main entrance approach.',
+      attack: 'Open garage walls and use vertical play from above. Coordinate hard breach with utility clearing.',
+    },
   },
   'consulate-garage': {
     defense: [

@@ -137,7 +137,7 @@ function ExportableCard({
   return (
     <div
       id={`export-card-${stat.id}`}
-      className="absolute top-0 left-0 w-[400px] p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl -z-50 opacity-0 pointer-events-none"
+      className="w-[400px] p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl pointer-events-none"
     >
       <div className="flex items-start gap-4">
         <div className={`h-20 w-20 flex-shrink-0 rounded-lg flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>
@@ -322,7 +322,7 @@ export function OperatorStatsModal({
         </div>
 
         {/* Hidden export cards - rendered off-screen for image capture */}
-        <div className="fixed bottom-0 left-0 w-[400px] opacity-0 pointer-events-none space-y-4">
+        <div className="fixed -top-[9999px] -left-[9999px] w-[400px] pointer-events-none space-y-4">
           {sorted.map(stat => {
             const lastItem = history.find(h => h.operator.id === stat.id && h.id === stat.lastUsed);
             const kills = operatorKills[stat.id] || 0;
