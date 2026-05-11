@@ -21,7 +21,8 @@ import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { MapAdvisor } from './components/MapAdvisor';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
-import { Operator, Loadout, MatchType, Platform } from './data/types';
+import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivision } from './data/types';
+import { RankedDisplay, DEFAULT_RANKED_STATS, TIER_ORDER, DIVISION_RP_MAX, WIN_RP, LOSS_RP } from './components/RankedDisplay';
 
 export default function Home() {
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
@@ -36,6 +37,8 @@ export default function Home() {
   const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
+  const [rankedStats, setRankedStats] = usePersistedState<RankedStats>('xawars_ranked_stats', DEFAULT_RANKED_STATS);
+  const [rankedPlatform, setRankedPlatform] = usePersistedState<'PC' | 'Console'>('xawars_ranked_platform', 'PC');
 
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
@@ -191,11 +194,102 @@ export default function Home() {
     setCurrentMatchType(null);
     setCurrentTargetKills(0);
     setCurrentRole('');
-setOperatorKills({});
-      setOperatorDeaths({});
-      setHistory([]);
+    setOperatorKills({});
+    setOperatorDeaths({});
+    setHistory([]);
     setTargetComplete(false);
   }
+
+  // Shared progression helper used by win/loss and manual RP add
+  const applyRPDelta = (platform: 'PC' | 'Console', delta: number) => {
+    setRankedStats(prev => {
+      const { tier, division, rp, peakTier, peakDivision } = prev[platform];
+
+      let newRp       = Math.max(0, rp + delta);
+      let newDivision: RankDivision = division;
+      let newTier:     RankTier     = tier;
+      let newPeakTier: RankTier     = peakTier;
+      let newPeakDivision: RankDivision = peakDivision;
+
+      if (newTier === 'Champion') {
+        newRp = Math.min(newRp, DIVISION_RP_MAX);
+      } else {
+        // Handle multiple division jumps (e.g. manual +200 RP)
+        while (newRp >= DIVISION_RP_MAX) {
+          newRp -= DIVISION_RP_MAX;
+          const nextDiv = (newDivision + 1) as RankDivision;
+          if (nextDiv > 5) {
+            newDivision = 1;
+            const idx = TIER_ORDER.indexOf(newTier);
+            if (idx < TIER_ORDER.length - 1) {
+              newTier = TIER_ORDER[idx + 1];
+            }
+            if (newTier === 'Champion') {
+              newRp = Math.min(newRp, DIVISION_RP_MAX);
+              break;
+            }
+          } else {
+            newDivision = nextDiv;
+          }
+        }
+      }
+
+      const isHigher =
+        TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(newPeakTier) ||
+        (newTier === newPeakTier && newDivision > newPeakDivision);
+      if (isHigher) {
+        newPeakTier     = newTier;
+        newPeakDivision = newDivision;
+      }
+
+      return {
+        ...prev,
+        [platform]: { tier: newTier, division: newDivision, rp: newRp, peakTier: newPeakTier, peakDivision: newPeakDivision },
+      };
+    });
+  };
+
+  const handleRPRankChange = (result: 'win' | 'loss') => {
+    applyRPDelta(rankedPlatform, result === 'win' ? WIN_RP : -LOSS_RP);
+  };
+
+  const handleRankedReset = () => {
+    if (confirm('Reset ranked season for ' + rankedPlatform + '? Peak rank will be kept.')) {
+      setRankedStats(prev => ({
+        ...prev,
+        [rankedPlatform]: {
+          ...prev[rankedPlatform],
+          tier: 'Copper',
+          division: 1,
+          rp: 0,
+        },
+      }));
+    }
+  };
+
+  const handleSetRank = (platform: 'PC' | 'Console', tier: RankTier, division: RankDivision, rp: number) => {
+    setRankedStats(prev => {
+      const clamped = Math.max(0, Math.min(DIVISION_RP_MAX, rp));
+      const { peakTier, peakDivision } = prev[platform];
+      const isHigher =
+        TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(peakTier) ||
+        (tier === peakTier && division > peakDivision);
+      return {
+        ...prev,
+        [platform]: {
+          tier,
+          division,
+          rp: clamped,
+          peakTier:     isHigher ? tier     : peakTier,
+          peakDivision: isHigher ? division  : peakDivision,
+        },
+      };
+    });
+  };
+
+  const handleAddRP = (platform: 'PC' | 'Console', delta: number) => {
+    applyRPDelta(platform, delta);
+  };
 
   const restoreFromHistory = (item: HistoryItem) => {
     const opId = item.operator.id;
@@ -313,8 +407,21 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
       {/* Grid layout container */}
       <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] gap-6 max-w-[1400px] mx-auto pb-20">
 
-        {/* Left Spacer - empty */}
-        <div></div>
+        {/* Left Column - Ranked Display */}
+        <div className="pt-[72px] flex justify-end">
+          {!isStreamerMode && (
+            <RankedDisplay
+              rankedStats={rankedStats}
+              selectedPlatform={rankedPlatform}
+              onWin={() => handleRPRankChange('win')}
+              onLoss={() => handleRPRankChange('loss')}
+              onPlatformChange={setRankedPlatform}
+              onReset={handleRankedReset}
+              onSetRank={handleSetRank}
+              onAddRP={handleAddRP}
+            />
+          )}
+        </div>
 
         {/* Center Column - Main Content */}
         <div className="w-[448px] flex flex-col gap-6">
