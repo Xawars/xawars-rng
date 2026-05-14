@@ -21,7 +21,7 @@ The following requirements were explicitly provided by the user:
 
 ---
 
-## 2. Technical Architecture
+## 2. Technical Architecture|
 
 ### 2.1 Technology Stack
 
