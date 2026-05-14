@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dices, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -20,6 +20,11 @@ import { OptionsRow } from './components/OptionsRow';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { MapAdvisor } from './components/MapAdvisor';
+import { FloatingGeneratorButton } from './components/FloatingGeneratorButton';
+import { ApiKeyModal } from './components/ApiKeyModal';
+import { ContentGeneratorModal } from './components/ContentGeneratorModal';
+import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
+import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
 import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivision } from './data/types';
 import { RankedDisplay, DEFAULT_RANKED_STATS, TIER_ORDER, DIVISION_RP_MAX, WIN_RP, LOSS_RP } from './components/RankedDisplay';
@@ -39,6 +44,18 @@ export default function Home() {
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
   const [rankedStats, setRankedStats] = usePersistedState<RankedStats>('xawars_ranked_stats', DEFAULT_RANKED_STATS);
   const [rankedPlatform, setRankedPlatform] = usePersistedState<'PC' | 'Console'>('xawars_ranked_platform', 'PC');
+
+  // AI Content Generator - persisted state
+  const [apiKey, setApiKey] = usePersistedState<string>('xawars_openai_api_key', '');
+  const [activeProvider, setActiveProvider] = usePersistedState<ProviderId>('xawars_ai_provider', DEFAULT_PROVIDER);
+
+  // AI Content Generator - transient state
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentIdea, setCurrentIdea] = useState<ContentIdea | null>(null);
+  const [generatorError, setGeneratorError] = useState<string | null>(null);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
@@ -61,6 +78,55 @@ export default function Home() {
 
   const { playRoll, stopRoll, playReveal } = useAudioFeedback();
   const { isMuted, toggleMute } = useSoundContext();
+
+  // --- AI Content Generator Handlers ---
+
+  const handleGenerate = useCallback(async (key?: string) => {
+    const keyToUse = key || apiKey;
+    setIsGenerating(true);
+    setGeneratorError(null);
+
+    try {
+      const idea = await generateContentIdea({ provider: activeProvider, apiKey: keyToUse });
+      setCurrentIdea(idea);
+    } catch (err: unknown) {
+      const classified = classifyApiError(activeProvider, err);
+      setGeneratorError(classified.message);
+
+      // Auth errors: clear key and open ApiKeyModal with error
+      if (classified.type === 'auth') {
+        setApiKey('');
+        setIsGeneratorOpen(false);
+        setApiKeyError(classified.message);
+        setIsApiKeyModalOpen(true);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [apiKey, activeProvider, setApiKey]);
+
+  const handleGeneratorClick = useCallback(() => {
+    const validation = validateApiKey(activeProvider, apiKey);
+    if (!validation.valid) {
+      setIsApiKeyModalOpen(true);
+    } else {
+      setIsGeneratorOpen(true);
+    }
+  }, [apiKey, activeProvider]);
+
+  const handleApiKeySave = useCallback((key: string, provider: ProviderId) => {
+    setApiKey(key);
+    setActiveProvider(provider);
+    setApiKeyError(null);
+    setIsApiKeyModalOpen(false);
+    setIsGeneratorOpen(true);
+  }, [setApiKey, setActiveProvider]);
+
+  const handleClearApiKey = useCallback(() => {
+    setApiKey('');
+    setIsGeneratorOpen(false);
+    setIsApiKeyModalOpen(true);
+  }, [setApiKey]);
 
   
 
@@ -400,6 +466,33 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         role={showRoles ? pendingRole : undefined}
         onAccept={handleAccept}
         onReject={handleReject}
+      />
+
+      {/* AI Content Generator */}
+      <FloatingGeneratorButton onClick={handleGeneratorClick} />
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => {
+          setIsApiKeyModalOpen(false);
+          setApiKeyError(null);
+        }}
+        onSave={handleApiKeySave}
+        error={apiKeyError}
+        initialProvider={activeProvider}
+      />
+      <ContentGeneratorModal
+        isOpen={isGeneratorOpen}
+        onClose={() => setIsGeneratorOpen(false)}
+        idea={currentIdea}
+        isGenerating={isGenerating}
+        error={generatorError}
+        onGenerate={() => handleGenerate()}
+        onClearApiKey={handleClearApiKey}
+        activeProvider={activeProvider}
+        onChangeProvider={() => {
+          setIsGeneratorOpen(false);
+          setIsApiKeyModalOpen(true);
+        }}
       />
 
       
