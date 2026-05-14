@@ -17,6 +17,7 @@ import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
+import { SideSelector } from './components/SideSelector';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { MapAdvisor } from './components/MapAdvisor';
@@ -26,7 +27,7 @@ import { ContentGeneratorModal } from './components/ContentGeneratorModal';
 import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
 import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
-import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivision } from './data/types';
+import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivision, Side } from './data/types';
 import { RankedDisplay, DEFAULT_RANKED_STATS, TIER_ORDER, DIVISION_RP_MAX, WIN_RP, LOSS_RP } from './components/RankedDisplay';
 
 export default function Home() {
@@ -41,6 +42,7 @@ export default function Home() {
   const [operatorDeaths, setOperatorDeaths] = usePersistedState<Record<string, number>>('xawars_operatorDeaths', {});
   const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
+  const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
   const [rankedStats, setRankedStats] = usePersistedState<RankedStats>('xawars_ranked_stats', DEFAULT_RANKED_STATS);
   const [rankedPlatform, setRankedPlatform] = usePersistedState<'PC' | 'Console'>('xawars_ranked_platform', 'PC');
@@ -141,7 +143,7 @@ export default function Home() {
     setTargetComplete(false);
     // Simple timeout to simulate "rolling" feel
     setTimeout(() => {
-      const op = getRandomOperator();
+      const op = getRandomOperator(currentSide || undefined);
       const loadout = generateLoadout(op);
       
       // Use selected match type or random
@@ -408,7 +410,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
     }
   };
 
-  const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.jpg` : null;
+  const wallpaperExt = currentOperator?.id === 'snake' ? 'png' : 'jpg';
+  const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.${wallpaperExt}` : null;
 
   return (
     <main className={`min-h-screen text-zinc-100 p-4 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
@@ -618,6 +621,10 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             <PlatformSelector
               currentPlatform={currentPlatform}
               onSelect={(platform) => setCurrentPlatform(platform)}
+            />
+            <SideSelector
+              currentSide={currentSide}
+              onSelect={(side) => setCurrentSide(side)}
             />
           </div>
 

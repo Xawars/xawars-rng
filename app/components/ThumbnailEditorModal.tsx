@@ -259,7 +259,7 @@ export function ThumbnailEditorModal({
               {bgStyle === 'wallpaper' && (
                 <div className="absolute inset-0 z-0">
                   <img 
-                    src={`/ops/${selectedOpId}_wallpaper.jpg`} 
+                    src={`/ops/${selectedOpId}_wallpaper.${selectedOpId === 'snake' ? 'png' : 'jpg'}`} 
                     alt="" 
                     className="w-full h-full object-cover opacity-40" 
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
