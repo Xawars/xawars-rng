@@ -34,8 +34,9 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
     );
   }
 
-  // Paths
-  const bgPath = `/ops/${operator.id}.jpg`;
+  // Paths — guest operators use .png, standard ops use .jpg
+  const imgExt = operator.id === 'snake' ? 'png' : 'jpg';
+  const bgPath = `/ops/${operator.id}.${imgExt}`;
   
   // Get icon from r6operators library
   const opIconData = (r6operators as any)[operator.id];
@@ -84,6 +85,8 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
                  className="w-full h-full flex items-center justify-center"
                  dangerouslySetInnerHTML={{ __html: iconSvg }}
                />
+            ) : operator.id === 'snake' ? (
+                <img src="/ops/snake_logo.png" alt={operator.name} className="w-full h-full object-contain drop-shadow-lg" />
             ) : (
                 // Fallback Icon
                 <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center font-bold text-xl text-white/50">

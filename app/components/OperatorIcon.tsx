@@ -3,6 +3,11 @@
 import r6operators from 'r6operators';
 import { useMemo } from 'react';
 
+// Custom icon mappings for guest operators not in the r6operators package
+const customIcons: Record<string, string> = {
+  snake: '/ops/snake_logo.png',
+};
+
 interface OperatorIconProps {
   id: string;
   className?: string;
@@ -19,8 +24,15 @@ export function OperatorIcon({ id, className, children }: OperatorIconProps) {
     return op.toSVG({ class: className });
   }, [id, className]);
 
-  if (typeof html !== 'string') return <>{children}</>;
+  // If r6operators has the icon, render the SVG
+  if (typeof html === 'string') {
+    return <div dangerouslySetInnerHTML={{ __html: html }} style={{ display: 'contents' }} />;
+  }
 
-  // Render the SVG string.
-  return <div dangerouslySetInnerHTML={{ __html: html }} style={{ display: 'contents' }} />;
+  // Fall back to custom icon for guest operators
+  if (customIcons[id]) {
+    return <img src={customIcons[id]} alt={id} className={className} />;
+  }
+
+  return <>{children}</>;
 }

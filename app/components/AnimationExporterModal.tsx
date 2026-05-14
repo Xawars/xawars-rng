@@ -421,7 +421,8 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
         }
         
         try {
-            bgImg = await preloadImage(`/ops/${finalOp.id}.jpg`);
+            const imgExt = finalOp.id === 'snake' ? 'png' : 'jpg';
+            bgImg = await preloadImage(`/ops/${finalOp.id}.${imgExt}`);
             const opIconData = (r6operators as any)[finalOp.id];
             if (opIconData) {
                 const svgString = opIconData.toSVG({ width: "100%", height: "100%" });
