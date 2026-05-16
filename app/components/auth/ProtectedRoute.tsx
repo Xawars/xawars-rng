@@ -4,6 +4,8 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 
+const GUEST_MODE_KEY = 'xawars_guest_mode';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
@@ -22,14 +24,39 @@ export function getSafeRedirectPath(path: string | null): string {
 }
 
 /**
+ * Checks if guest mode is active (flag set in localStorage).
+ */
+export function isGuestMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(GUEST_MODE_KEY) === 'true';
+}
+
+/**
+ * Activates guest mode by setting the localStorage flag.
+ */
+export function enableGuestMode(): void {
+  localStorage.setItem(GUEST_MODE_KEY, 'true');
+}
+
+/**
+ * Deactivates guest mode by removing the localStorage flag.
+ */
+export function clearGuestMode(): void {
+  localStorage.removeItem(GUEST_MODE_KEY);
+}
+
+/**
  * A wrapper component that protects routes requiring authentication.
  * 
- * When an unauthenticated user navigates to a protected route:
+ * Access is granted if:
+ * - The user has an active session (authenticated), OR
+ * - Guest mode is enabled (localStorage flag)
+ * 
+ * When neither condition is met:
  * - Redirects to `/login?returnUrl=<original_path>`
  * - After successful auth on the login page, the user is redirected back
  * 
  * While auth state is loading, displays a loading indicator.
- * When authenticated, renders the children normally.
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isLoading, session } = useAuth();
@@ -37,7 +64,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !session) {
+    if (!isLoading && !session && !isGuestMode()) {
       const safePathname = getSafeRedirectPath(pathname);
       const loginUrl = safePathname === '/'
         ? '/login'
@@ -82,11 +109,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // If not authenticated, don't render children (redirect is in progress)
-  if (!session) {
+  // If not authenticated and not in guest mode, don't render (redirect in progress)
+  if (!session && !isGuestMode()) {
     return null;
   }
 
-  // Authenticated — render the protected content
+  // Authenticated or guest mode — render the protected content
   return <>{children}</>;
 }

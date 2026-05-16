@@ -6,6 +6,7 @@
 export interface ValidationErrors {
   email?: string;
   password?: string;
+  callsign?: string;
 }
 
 /**
@@ -65,10 +66,11 @@ export function validateLoginForm(email: string, password: string): ValidationEr
 }
 
 /**
- * Validates signup form fields. Same as login plus password minimum 8 characters.
+ * Validates signup form fields. Same as login plus password minimum 8 characters
+ * and callsign validation.
  * Returns ALL errors simultaneously (no short-circuiting).
  */
-export function validateSignupForm(email: string, password: string): ValidationErrors {
+export function validateSignupForm(email: string, password: string, callsign?: string): ValidationErrors {
   const errors: ValidationErrors = {};
 
   const trimmedEmail = email.trim();
@@ -84,5 +86,34 @@ export function validateSignupForm(email: string, password: string): ValidationE
     errors.password = 'Password must be at least 8 characters';
   }
 
+  if (callsign !== undefined) {
+    const callsignError = validateCallsign(callsign);
+    if (callsignError) {
+      errors.callsign = callsignError;
+    }
+  }
+
   return errors;
+}
+
+/**
+ * Validates a callsign string.
+ * Rules: 3–20 characters, alphanumeric + underscores + hyphens only.
+ * Returns an error message or undefined if valid.
+ */
+export function validateCallsign(callsign: string): string | undefined {
+  const trimmed = callsign.trim();
+  if (trimmed.length === 0) {
+    return 'Callsign is required';
+  }
+  if (trimmed.length < 3) {
+    return 'Callsign must be at least 3 characters';
+  }
+  if (trimmed.length > 20) {
+    return 'Callsign must be 20 characters or less';
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    return 'Only letters, numbers, underscores, and hyphens allowed';
+  }
+  return undefined;
 }

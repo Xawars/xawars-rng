@@ -1,22 +1,153 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Foundation Tokens — Neutral Scale */
+  --color-black: #000000;
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-600: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #a1a1aa;
+  --color-white: #ffffff;
+
+  /* Foundation Tokens — Brand Yellow */
+  --color-yellow-500: #eab308;
+  --color-yellow-400: #facc15;
+
+  /* Foundation Tokens — Attack Orange */
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+
+  /* Foundation Tokens — Defense Blue */
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+
+  /* Foundation Tokens — Success Green */
+  --color-green-500: #22c55e;
+  --color-green-400: #4ade80;
+
+  /* Foundation Tokens — Error Red */
+  --color-red-500: #ef4444;
+  --color-red-400: #f87171;
+  --color-red-600: #dc2626;
+
+  /* Semantic Tokens — Surfaces */
+  --color-bg-primary: var(--color-black);
+  --color-bg-surface: var(--color-zinc-900);
+  --color-bg-elevated: var(--color-zinc-800);
+  --color-bg-overlay: var(--color-zinc-700);
+
+  /* Semantic Tokens — Text */
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-zinc-400);
+  --color-text-muted: var(--color-zinc-500);
+  --color-text-disabled: var(--color-zinc-600);
+
+  /* Semantic Tokens — Accent */
+  --color-accent: var(--color-yellow-500);
+  --color-accent-hover: var(--color-yellow-400);
+
+  /* Semantic Tokens — Borders */
+  --color-border-default: var(--color-zinc-700);
+  --color-border-hover: var(--color-zinc-500);
+  --color-border-focus: var(--color-yellow-500);
+
+  /* Semantic Tokens — States */
+  --color-success: var(--color-green-500);
+  --color-error: var(--color-red-500);
+  --color-warning: #f59e0b;
+  --color-info: var(--color-blue-500);
+  --color-error-bg: rgb(239 68 68 / 0.1);
+  --color-error-border: rgb(239 68 68 / 0.3);
+  --color-error-text: var(--color-red-400);
+
+  /* Semantic Tokens — Gaming Context */
+  --color-attack: var(--color-orange-500);
+  --color-attack-active: var(--color-orange-600);
+  --color-defense: var(--color-blue-500);
+  --color-defense-active: var(--color-blue-600);
+
+  /* Layout Tokens */
+  --background: var(--color-bg-primary);
+  --foreground: var(--color-text-primary);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Font Families */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Foundation Tokens — Neutral Scale */
+  --color-black: var(--color-black);
+  --color-zinc-900: var(--color-zinc-900);
+  --color-zinc-800: var(--color-zinc-800);
+  --color-zinc-700: var(--color-zinc-700);
+  --color-zinc-600: var(--color-zinc-600);
+  --color-zinc-500: var(--color-zinc-500);
+  --color-zinc-400: var(--color-zinc-400);
+  --color-white: var(--color-white);
+
+  /* Foundation Tokens — Brand Yellow */
+  --color-yellow-500: var(--color-yellow-500);
+  --color-yellow-400: var(--color-yellow-400);
+
+  /* Foundation Tokens — Attack Orange */
+  --color-orange-500: var(--color-orange-500);
+  --color-orange-600: var(--color-orange-600);
+
+  /* Foundation Tokens — Defense Blue */
+  --color-blue-500: var(--color-blue-500);
+  --color-blue-600: var(--color-blue-600);
+
+  /* Foundation Tokens — Success Green */
+  --color-green-500: var(--color-green-500);
+  --color-green-400: var(--color-green-400);
+
+  /* Foundation Tokens — Error Red */
+  --color-red-500: var(--color-red-500);
+  --color-red-400: var(--color-red-400);
+  --color-red-600: var(--color-red-600);
+
+  /* Semantic Tokens — Surfaces */
+  --color-bg-primary: var(--color-bg-primary);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-overlay: var(--color-bg-overlay);
+
+  /* Semantic Tokens — Text */
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-disabled: var(--color-text-disabled);
+
+  /* Semantic Tokens — Accent */
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+
+  /* Semantic Tokens — Borders */
+  --color-border-default: var(--color-border-default);
+  --color-border-hover: var(--color-border-hover);
+  --color-border-focus: var(--color-border-focus);
+
+  /* Semantic Tokens — States */
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
+  --color-warning: var(--color-warning);
+  --color-info: var(--color-info);
+  --color-error-bg: var(--color-error-bg);
+  --color-error-border: var(--color-error-border);
+  --color-error-text: var(--color-error-text);
+
+  /* Semantic Tokens — Gaming Context */
+  --color-attack: var(--color-attack);
+  --color-attack-active: var(--color-attack-active);
+  --color-defense: var(--color-defense);
+  --color-defense-active: var(--color-defense-active);
+
+  /* Layout Tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 }
 
 body {
@@ -43,7 +174,7 @@ body {
 }
 
 .animate-button-press {
-  animation: button-press 0.3s ease-in-out;
+  animation: button-press 200ms ease;
 }
 
 .animate-ken-burns {
@@ -86,4 +217,76 @@ body {
 
 .animate-shimmer {
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Onboarding — Entry Reveal */
+@keyframes entry-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-entry-reveal {
+  animation: entry-reveal 600ms ease-out forwards;
+}
+
+/* Onboarding — First Action Pulse */
+@keyframes first-action-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(234 179 8 / 0.4); }
+  70% { box-shadow: 0 0 0 12px rgb(234 179 8 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(234 179 8 / 0); }
+}
+
+.animate-first-action-pulse {
+  animation: first-action-pulse 2s ease-out infinite;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-ken-burns,
+  .animate-shimmer,
+  .animate-button-press,
+  .animate-entry-reveal,
+  .animate-first-action-pulse {
+    animation: none !important;
+  }
+
+  /* Preserve functional animations */
+  .animate-spin {
+    animation-duration: 1s;
+  }
+}
+
+/* ==========================================================================
+   Z-Index Layer Documentation
+   ==========================================================================
+   z-0:    Base content (page content, cards, panels)
+   z-10:   Sticky headers and navigation
+   z-20:   Dropdowns and popovers
+   z-30:   Floating action buttons
+   z-40:   Modal backdrops
+   z-50:   Modal content
+   z-[60]: Toast notifications
+   ========================================================================== */
+
+/* Responsive Layout Patterns */
+@media (max-width: 479px) {
+  .responsive-card {
+    width: calc(100vw - 32px);
+    min-width: 280px;
+  }
+}
+
+/* Minimum touch target size for mobile */
+@media (max-width: 640px) {
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
