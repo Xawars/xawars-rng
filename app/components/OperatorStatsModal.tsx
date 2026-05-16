@@ -301,7 +301,7 @@ export function OperatorStatsModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto scrollbar-accent p-4 space-y-2">
           {sorted.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
               <p className="text-sm">No deployments yet.</p>

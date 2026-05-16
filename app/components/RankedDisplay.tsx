@@ -24,14 +24,14 @@ export const DEFAULT_RANKED_STATS: RankedStats = {
 };
 
 const TIER_CONFIG: Record<RankTier, { color: string; glow: string; bar: string }> = {
-  Copper:   { color: '#B87333', glow: '#B8733340', bar: '#B87333' },
-  Bronze:   { color: '#CD7F32', glow: '#CD7F3240', bar: '#CD7F32' },
-  Silver:   { color: '#C0C0C0', glow: '#C0C0C040', bar: '#C0C0C0' },
-  Gold:     { color: '#FFD700', glow: '#FFD70040', bar: '#FFD700' },
-  Platinum: { color: '#E8E8E8', glow: '#E8E8E840', bar: '#E8E8E8' },
-  Emerald:  { color: '#50C878', glow: '#50C87840', bar: '#50C878' },
-  Diamond:  { color: '#B9F2FF', glow: '#B9F2FF40', bar: '#B9F2FF' },
-  Champion: { color: '#ff6ec7', glow: '#ff6ec740', bar: ''        },
+  Copper:   { color: '#8D4925', glow: '#8D492540', bar: '#8D4925' },
+  Bronze:   { color: '#A67C52', glow: '#A67C5240', bar: '#A67C52' },
+  Silver:   { color: '#8C9298', glow: '#8C929840', bar: '#8C9298' },
+  Gold:     { color: '#D4A843', glow: '#D4A84340', bar: '#D4A843' },
+  Platinum: { color: '#5B9BD5', glow: '#5B9BD540', bar: '#5B9BD5' },
+  Emerald:  { color: '#00B86B', glow: '#00B86B40', bar: '#00B86B' },
+  Diamond:  { color: '#A45EE5', glow: '#A45EE540', bar: '#A45EE5' },
+  Champion: { color: '#E8403E', glow: '#E8403E40', bar: ''        },
 };
 
 const ROMAN: Record<RankDivision, string> = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
@@ -42,7 +42,7 @@ const DIVISIONS: RankDivision[] = [1, 2, 3, 4, 5];
 function TierIcon({ tier, size = 20 }: { tier: RankTier; size?: number }) {
   const cfg = TIER_CONFIG[tier];
   if (tier === 'Champion') {
-    return <Crown size={size} color="#ff6ec7" style={{ filter: 'drop-shadow(0 0 5px #ff6ec7)' }} />;
+    return <Crown size={size} color="#E8403E" style={{ filter: 'drop-shadow(0 0 5px #E8403E)' }} />;
   }
   return (
     <Shield size={size} fill={cfg.color} color={cfg.color}
@@ -283,8 +283,6 @@ function PlatformCard({ platform, progress, isActive, flashTierUp, onClick, onSe
 interface RankedDisplayProps {
   rankedStats: RankedStats;
   selectedPlatform: 'PC' | 'Console';
-  onWin: () => void;
-  onLoss: () => void;
   onPlatformChange: (platform: 'PC' | 'Console') => void;
   onReset: () => void;
   onSetRank: (platform: 'PC' | 'Console', tier: RankTier, division: RankDivision, rp: number) => void;
@@ -293,7 +291,7 @@ interface RankedDisplayProps {
 
 export function RankedDisplay({
   rankedStats, selectedPlatform,
-  onWin, onLoss, onPlatformChange, onReset, onSetRank, onAddRP,
+  onPlatformChange, onReset, onSetRank, onAddRP,
 }: RankedDisplayProps) {
   const [flashTierUp, setFlashTierUp] = useState<'PC' | 'Console' | null>(null);
   const [rpInput, setRpInput] = useState('');
@@ -349,35 +347,12 @@ export function RankedDisplay({
           ))}
         </div>
 
-        {/* Win / Loss + RP input — all in a compact block */}
+        {/* Manual RP input */}
         <div className="rounded-xl border border-white/8 bg-white/[0.02] p-2 space-y-2">
           {/* Platform hint */}
           <p className="text-[9px] uppercase tracking-widest text-white/25 font-bold text-center">
             {selectedPlatform === 'PC' ? '🖥' : '🎮'} {selectedPlatform} — active
           </p>
-
-          {/* Win / Loss side by side */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              id="ranked-win-btn"
-              onClick={onWin}
-              disabled={isChampion}
-              className="flex flex-col items-center py-2.5 rounded-lg border transition-all duration-150 hover:scale-[1.03] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ borderColor: 'rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.07)', color: '#4ade80' }}
-            >
-              <span className="text-base font-black leading-none">+{WIN_RP}</span>
-              <span className="text-[9px] tracking-widest opacity-60 mt-0.5">WIN</span>
-            </button>
-            <button
-              id="ranked-loss-btn"
-              onClick={onLoss}
-              className="flex flex-col items-center py-2.5 rounded-lg border transition-all duration-150 hover:scale-[1.03] active:scale-95"
-              style={{ borderColor: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.07)', color: '#f87171' }}
-            >
-              <span className="text-base font-black leading-none">−{LOSS_RP}</span>
-              <span className="text-[9px] tracking-widest opacity-60 mt-0.5">LOSS</span>
-            </button>
-          </div>
 
           {/* Manual RP row */}
           <div className="flex gap-1">

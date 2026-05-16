@@ -113,7 +113,7 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className={`fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto ${className}`}
+        className={`fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto scrollbar-accent ${className}`}
       >
         {/* Close button */}
         <button

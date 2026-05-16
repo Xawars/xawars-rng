@@ -66,7 +66,7 @@ export function ContentGeneratorModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300 slide-in-from-bottom-4">
+      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-accent animate-in zoom-in-95 duration-300 slide-in-from-bottom-4">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-zinc-900 p-4 border-b border-white/5 flex items-center justify-between rounded-t-xl">
           <div className="flex items-center gap-2">

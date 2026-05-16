@@ -84,14 +84,14 @@ export function OAuthButtonGroup({
   const isDisabled = disabled || loadingProvider !== null;
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-2.5">
       {/* OAuth Buttons — Discord prominent */}
       <button
         type="button"
         onClick={() => onOAuthClick('discord')}
         disabled={isDisabled}
         aria-label="Continue with Discord"
-        className="inline-flex w-full items-center justify-center gap-3 rounded bg-[#5865F2] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-[#5865F2]/20 transition-all duration-200 hover:bg-[#4752C4] active:translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#5865F2] focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center gap-3 rounded bg-[#5865F2] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5865F2]/20 transition-all duration-200 hover:bg-[#4752C4] active:translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#5865F2] focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loadingProvider === 'discord' ? <LoadingSpinner /> : <DiscordIcon />}
         <span>Continue with Discord</span>
@@ -102,16 +102,16 @@ export function OAuthButtonGroup({
         onClick={() => onOAuthClick('google')}
         disabled={isDisabled}
         aria-label="Continue with Google"
-        className="inline-flex w-full items-center justify-center gap-3 rounded border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center gap-3 rounded border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loadingProvider === 'google' ? <LoadingSpinner /> : <GoogleIcon />}
         <span>Continue with Google</span>
       </button>
 
       {/* Divider */}
-      <div className="relative flex items-center pt-2">
+      <div className="relative flex items-center pt-1">
         <div className="grow border-t border-zinc-700/70" />
-        <span className="mx-4 shrink-0 text-xs uppercase tracking-wider text-zinc-600">
+        <span className="mx-4 shrink-0 text-[10px] uppercase tracking-wider text-zinc-600">
           or use email
         </span>
         <div className="grow border-t border-zinc-700/70" />

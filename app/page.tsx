@@ -9,6 +9,7 @@ import { useSoundContext } from './context/SoundContext';
 import { useAuth } from './context/AuthContext';
 import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
+import { RollAnimation } from './components/RollAnimation';
 import { StatCounter } from './components/StatCounter';
 
 import { HistoryList, HistoryItem } from './components/HistoryList';
@@ -30,6 +31,7 @@ import { ProtectedRoute, isGuestMode, clearGuestMode } from './components/auth/P
 import { TacticalEntry, WelcomeModal, FirstActionTooltip } from './components/onboarding';
 import { useOnboardingContext } from './components/onboarding/OnboardingProvider';
 import { AccountIndicator, SetCallsignModal, shouldPromptCallsign } from './components/account';
+import { useData } from './context/DataContext';
 import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
 import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
@@ -48,6 +50,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
+  const { addDeployment, clearDeployments, updateRankedStats: syncRankedStats, resetRankedSeason } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -202,7 +205,7 @@ function HomeContent() {
 
       // NOTE: We delay the reveal sound until acceptance or maybe play a "ready" sound here?
       // For now, let's keep silence or a "tick" sound, and play the BIG reveal on accept.
-    }, 600);
+    }, 1200);
   };
 
   const handleAccept = () => {
@@ -241,6 +244,20 @@ function HomeContent() {
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
+    // Persist deployment to cloud
+    addDeployment({
+      id: crypto.randomUUID(),
+      operatorId: pendingOperator.id,
+      operatorName: pendingOperator.name,
+      operatorSide: pendingOperator.side,
+      loadout: pendingLoadout,
+      matchType: pendingMatchType || undefined,
+      platform: pendingMatchType === 'Ranked' ? pendingPlatform || undefined : undefined,
+      targetKills: pendingTargetKills,
+      role: pendingRole || undefined,
+      deployedAt: new Date().toISOString(),
+    });
+
     // Play reveal sound
     playReveal();
 
@@ -264,7 +281,7 @@ function HomeContent() {
   };
 
   const handleReset = () => {
-    if (confirm("Are you sure you want to reset the run?")) {
+    if (confirm("Are you sure you want to reset the run? This will delete all deployment records.")) {
       setKills(0);
       setDeaths(0);
       setCurrentOperator(null);
@@ -277,6 +294,7 @@ function HomeContent() {
       setOperatorDeaths({});
       setHistory([]);
       setTargetComplete(false);
+      clearDeployments();
     }
   };
 
@@ -348,22 +366,14 @@ function HomeContent() {
   };
 
   const handleRankedReset = () => {
-    if (confirm('Reset ranked season for ' + rankedPlatform + '? Peak rank will be kept.')) {
-      setRankedStats(prev => ({
-        ...prev,
-        [rankedPlatform]: {
-          ...prev[rankedPlatform],
-          tier: 'Copper',
-          division: 1,
-          rp: 0,
-        },
-      }));
+    if (confirm('Reset ranked season for ' + rankedPlatform + '? This will delete the record from the database. Peak rank will be kept.')) {
+      resetRankedSeason(rankedPlatform);
     }
   };
 
   const handleSetRank = (platform: 'PC' | 'Console', tier: RankTier, division: RankDivision, rp: number) => {
+    const clamped = Math.max(0, Math.min(DIVISION_RP_MAX, rp));
     setRankedStats(prev => {
-      const clamped = Math.max(0, Math.min(DIVISION_RP_MAX, rp));
       const { peakTier, peakDivision } = prev[platform];
       const isHigher =
         TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(peakTier) ||
@@ -379,6 +389,8 @@ function HomeContent() {
         },
       };
     });
+    // Sync to Supabase
+    syncRankedStats(platform, { tier, division, rp: clamped });
   };
 
   const handleAddRP = (platform: 'PC' | 'Console', delta: number) => {
@@ -441,7 +453,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
   return (
     <TacticalEntry>
-    <main className={`min-h-screen text-zinc-100 p-4 ${isGuestMode() && !session ? 'pt-12' : ''} font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
+    <main className={`h-dvh h-screen text-zinc-100 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
 
       {/* Onboarding Welcome Modal */}
       <WelcomeModal onDeploy={handleRoll} />
@@ -504,9 +516,9 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         operator={pendingOperator}
         loadout={pendingLoadout}
         matchType={pendingMatchType}
-        platform={pendingMatchType === 'Ranked' ? pendingPlatform : undefined}
+        platform={pendingPlatform}
         targetKills={pendingTargetKills}
-        role={showRoles ? pendingRole : undefined}
+        role={pendingRole || undefined}
         onAccept={handleAccept}
         onReject={handleReject}
       />
@@ -541,16 +553,60 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
       
 
       {/* Grid layout container */}
-      <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] gap-6 max-w-[1400px] mx-auto pb-20">
+      <div className={`relative z-10 flex flex-col h-full max-w-[1400px] mx-auto px-4 ${isGuestMode() && !session ? 'pt-10' : ''}`}>
 
-        {/* Left Column - Ranked Display */}
-        <div className="pt-[72px] flex justify-end">
-          {!isStreamerMode && (
-            <RankedDisplay
+        {/* Sticky Header */}
+        <header className="shrink-0 flex items-center justify-between py-3 border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
+              Xawars <span className="text-white">RNG</span>
+            </h1>
+            {/* View Mode Tabs */}
+            <div className="flex bg-zinc-800 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('roulette')}
+                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                  viewMode === 'roulette'
+                    ? 'bg-yellow-500 text-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Roulette
+              </button>
+              <button
+                onClick={() => setViewMode('map-advisor')}
+                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                  viewMode === 'map-advisor'
+                    ? 'bg-yellow-500 text-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Map Advisor
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
+              <span className="sr-only">Toggle Mute</span>
+            </Button>
+            {!isStreamerMode && viewMode === 'roulette' && (
+              <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
+                Reset Run
+              </Button>
+            )}
+            <AccountIndicator onOpenStats={() => setIsStatsModalOpen(true)} />
+          </div>
+        </header>
+
+        {/* Content area — fills remaining height */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,448px)_1fr] gap-4 lg:gap-6 pt-4">
+
+          {/* Left Column - Ranked Display (hidden on small screens) */}
+          <div className="hidden lg:flex justify-end overflow-y-auto scrollbar-auto-hide pr-2">
+            {!isStreamerMode && (
+              <RankedDisplay
               rankedStats={rankedStats}
               selectedPlatform={rankedPlatform}
-              onWin={() => handleRPRankChange('win')}
-              onLoss={() => handleRPRankChange('loss')}
               onPlatformChange={setRankedPlatform}
               onReset={handleRankedReset}
               onSetRank={handleSetRank}
@@ -560,57 +616,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         </div>
 
         {/* Center Column - Main Content */}
-        <div className="w-[448px] flex flex-col gap-6">
-
-          {/* Header / Stats */}
-          <header className="flex items-center justify-between py-4 border-b border-white/10">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
-                Xawars <span className="text-white">RNG</span>
-              </h1>
-              {/* View Mode Tabs */}
-              <div className="flex bg-zinc-800 rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode('roulette')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                    viewMode === 'roulette'
-                      ? 'bg-yellow-500 text-black'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Roulette
-                </button>
-                <button
-                  onClick={() => setViewMode('map-advisor')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                    viewMode === 'map-advisor'
-                      ? 'bg-yellow-500 text-black'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Map Advisor
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
-                <span className="sr-only">Toggle Mute</span>
-              </Button>
-              {!isStreamerMode && viewMode === 'roulette' && (
-                <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
-                  Reset Run
-                </Button>
-              )}
-              <AccountIndicator onOpenStats={() => setIsStatsModalOpen(true)} />
-            </div>
-          </header>
+        <div className="max-w-[448px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-hidden">
 
           {viewMode === 'map-advisor' ? (
-            <MapAdvisor />
+            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
+              <MapAdvisor />
+            </div>
           ) : (
             <>
           {/* Stats Row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 shrink-0">
             <StatCounter
               label="Kills"
               value={kills}
@@ -652,31 +667,36 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             />
           </div>
 
-          {/* Match Type and Platform Selectors */}
-          <div className="flex flex-col gap-4">
+          {/* Selectors — compact stacked */}
+          <div className="flex flex-col gap-2 shrink-0 mt-3">
             <MatchTypeSelector
               currentType={currentMatchType}
               onSelect={(type) => setCurrentMatchType(type)}
               isRollingParent={isRolling}
             />
-            <PlatformSelector
-              currentPlatform={currentPlatform}
-              onSelect={(platform) => setCurrentPlatform(platform)}
-            />
-            <SideSelector
-              currentSide={currentSide}
-              onSelect={(side) => setCurrentSide(side)}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <PlatformSelector
+                currentPlatform={currentPlatform}
+                onSelect={(platform) => setCurrentPlatform(platform)}
+              />
+              <SideSelector
+                currentSide={currentSide}
+                onSelect={(side) => setCurrentSide(side)}
+              />
+            </div>
           </div>
 
           {/* Options Row */}
-          <OptionsRow
-            showRoles={showRoles}
-            onToggleRoles={(enabled) => setShowRoles(enabled)}
-          />
+          <div className="shrink-0 mt-2">
+            <OptionsRow
+              showRoles={showRoles}
+              onToggleRoles={(enabled) => setShowRoles(enabled)}
+            />
+          </div>
 
           {/* Operator Card area */}
-          <div id="operator-card-container">
+          <div id="operator-card-container" className="shrink-0 mt-3 relative">
+            <RollAnimation isRolling={isRolling} side={currentSide} />
             <OperatorDisplay
               operator={currentOperator}
               loadout={currentLoadout}
@@ -689,38 +709,67 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             />
           </div>
 
-          {/* Target Complete Banner */}
+          {/* Target Complete Overlay — shows on top of operator card */}
           {targetComplete && currentOperator && (
-            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-center animate-pulse">
-              <p className="text-green-400 font-bold uppercase tracking-wider">
-                Target Complete: {currentOperator.name} reached {currentTargetKills} kills!
-              </p>
-              <p className="text-zinc-400 text-sm mt-1">Reroll to continue or keep playing</p>
+            <div className="shrink-0 mt-2 relative overflow-hidden rounded-xl border border-green-500/30 bg-gradient-to-b from-green-900/30 via-zinc-900/90 to-zinc-900 p-4">
+              {/* Background glow */}
+              <div className="absolute inset-0 bg-gradient-to-t from-transparent to-green-500/5 pointer-events-none" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-green-500/10 blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col items-center gap-2">
+                {/* Success icon */}
+                <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </div>
+
+                {/* Title */}
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-400/80">Mission Complete</p>
+                
+                {/* Operator + kills */}
+                <p className="text-lg font-black uppercase tracking-tight text-white">
+                  {currentOperator.name} <span className="text-green-400">× {currentTargetKills}</span>
+                </p>
+
+                {/* Subtitle */}
+                <p className="text-[10px] text-zinc-400">Target eliminated — deploy again or keep playing</p>
+
+                {/* Quick action */}
+                <button
+                  onClick={handleRoll}
+                  className="mt-1 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-green-500/15 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/25 transition-colors"
+                >
+                  Next Deployment →
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Action Button */}
-          <FirstActionTooltip>
-          <Button
-            onClick={handleRoll}
-            disabled={isRolling}
-            size="lg"
-            className={`w-full text-lg py-6 transition-all active:scale-95 ${isRolling ? 'animate-button-press' : ''}`}
-            icon={Dices}
-          >
-            {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
-          </Button>
-          </FirstActionTooltip>
+          {/* Action Button — always at bottom */}
+          <div className="shrink-0 mt-3">
+            <FirstActionTooltip>
+            <Button
+              onClick={handleRoll}
+              disabled={isRolling}
+              size="md"
+              className={`w-full transition-all active:scale-95 ${isRolling ? 'animate-button-press' : ''}`}
+              icon={Dices}
+            >
+              {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
+            </Button>
+            </FirstActionTooltip>
+          </div>
 
           
             </>
           )}
 
-        </div>
+          </div>
 
         {/* Right Column - History - Hide in streamer mode */}
         {!isStreamerMode && (
-          <div className="w-80 pt-[72px]">
+          <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-2">
             <Button
               variant="outline"
               size="sm"
@@ -730,7 +779,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             >
               Select from History
             </Button>
-            <HistoryList history={history} onItemClick={setSelectedHistoryItem} />
+            <HistoryList
+              history={history}
+              operatorKills={operatorKills}
+              currentOperatorId={currentOperator?.id || null}
+              onItemClick={setSelectedHistoryItem}
+            />
           </div>
         )}
 
@@ -753,6 +807,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           />
         )}
 
+        </div>
       </div>
     </main>
     </TacticalEntry>

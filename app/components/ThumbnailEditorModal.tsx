@@ -117,7 +117,7 @@ export function ThumbnailEditorModal({
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
           
           {/* Controls Sidebar */}
-          <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-900/30 p-6 overflow-y-auto space-y-6">
+          <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-900/30 p-6 overflow-y-auto scrollbar-accent space-y-6">
             
             {/* Operator Selection */}
             <div className="space-y-4">

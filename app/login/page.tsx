@@ -15,7 +15,6 @@ import { XAWarsLogo } from '@/app/components/XAWarsLogo';
  */
 function getSafeReturnUrl(returnUrl: string | null): string {
   if (!returnUrl) return '/';
-  // Must start with '/' and must NOT start with '//' (protocol-relative URL)
   if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
     return returnUrl;
   }
@@ -26,7 +25,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-black font-sans">
+        <div className="flex h-screen items-center justify-center bg-black font-sans">
           <div role="status" aria-label="Loading" className="flex flex-col items-center gap-3">
             <svg
               className="animate-spin h-8 w-8 text-yellow-500"
@@ -67,12 +66,9 @@ function LoginPageContent() {
   // Two-phase transition: fade out → swap content → fade in
   useEffect(() => {
     if (mode !== displayedMode) {
-      // Phase 1: fade out
       setTransitionPhase('out');
       transitionTimer.current = setTimeout(() => {
-        // Swap content after fade-out completes
         setDisplayedMode(mode);
-        // Phase 2: start faded-out, then fade in on next frame
         requestAnimationFrame(() => {
           setTransitionPhase('in');
           transitionTimer.current = setTimeout(() => {
@@ -116,7 +112,6 @@ function LoginPageContent() {
           if (mode === 'login') {
             router.push(returnUrl);
           } else {
-            // Show verification message instead of redirecting
             setSignupSuccess(true);
           }
         } else {
@@ -148,15 +143,11 @@ function LoginPageContent() {
     [signInWithOAuth]
   );
 
-  // Loading state: show full-page loading indicator
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black font-sans overflow-x-hidden">
-        <div
-          role="status"
-          aria-label="Loading authentication"
-          className="flex flex-col items-center gap-3"
-        >
+      <div className="flex h-screen items-center justify-center bg-black font-sans overflow-hidden">
+        <div role="status" aria-label="Loading authentication" className="flex flex-col items-center gap-3">
           <svg
             className="animate-spin h-8 w-8 text-yellow-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -164,19 +155,8 @@ function LoginPageContent() {
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           <span className="text-sm text-zinc-400">Loading...</span>
         </div>
@@ -184,30 +164,20 @@ function LoginPageContent() {
     );
   }
 
-  // If session exists (redirect in progress), don't render the form
-  if (session) {
-    return null;
-  }
+  // Redirect in progress
+  if (session) return null;
 
-  // Signup success — show verification message
+  // Signup success — verification message
   if (signupSuccess) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-black px-4 py-8 lg:py-0 font-sans overflow-x-hidden">
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden="true"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(39,39,42,0.4) 0%, transparent 70%)',
-          }}
-        />
-        <div className="relative w-full max-w-sm min-w-[280px] space-y-6 text-center">
+      <div className="auth-shell">
+        <AuthBackground />
+        <div className="relative w-full max-w-sm min-w-[280px] space-y-5 text-center">
           <div className="flex flex-col items-center">
-            <XAWarsLogo size={72} className="mb-3 drop-shadow-[0_0_12px_rgba(234,179,8,0.3)]" />
-            {/* Email icon */}
-            <div className="mt-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-500/30 bg-emerald-500/10">
+            <XAWarsLogo size={56} className="mb-2 drop-shadow-[0_0_12px_rgba(234,179,8,0.3)]" />
+            <div className="mt-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-500/30 bg-emerald-500/10">
               <svg
-                className="h-8 w-8 text-emerald-400"
+                className="h-7 w-7 text-emerald-400"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -220,21 +190,21 @@ function LoginPageContent() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white">Check your inbox</h2>
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-white">Check your inbox</h2>
             <p className="text-sm text-zinc-400">
               We sent a verification link to your email. Click the link to activate your account.
             </p>
           </div>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             <button
               type="button"
               onClick={() => {
                 setSignupSuccess(false);
                 setMode('login');
               }}
-              className="inline-flex w-full items-center justify-center rounded bg-yellow-500 px-6 py-3 text-sm font-bold uppercase tracking-wider text-black shadow-lg shadow-yellow-500/20 transition-all duration-200 hover:bg-yellow-400 active:translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+              className="inline-flex w-full items-center justify-center rounded bg-yellow-500 px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-black shadow-lg shadow-yellow-500/20 transition-all duration-200 hover:bg-yellow-400 active:translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
             >
               Back to Login
             </button>
@@ -247,66 +217,62 @@ function LoginPageContent() {
     );
   }
 
-  // Render auth page
+  // Main auth page
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-black px-4 py-8 lg:py-0 font-sans overflow-x-hidden">
-      {/* Subtle radial gradient for depth */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(39,39,42,0.4) 0%, transparent 70%)',
-        }}
-      />
-      <div className="relative w-full max-w-sm min-w-[280px] max-[480px]:max-w-[calc(100vw-32px)] space-y-5 sm:space-y-6">
-        {/* Brand */}
-        <div className="flex flex-col items-center text-center">
-          <XAWarsLogo size={72} className="mb-3 drop-shadow-[0_0_12px_rgba(234,179,8,0.3)] max-sm:scale-[0.8] max-sm:origin-center" />
-          <h1 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider text-yellow-500 min-h-[32px]">
+    <div className="auth-shell">
+      <AuthBackground />
+
+      <div className="relative w-full max-w-[360px] min-w-[280px] max-[480px]:max-w-[calc(100vw-32px)] flex flex-col">
+        {/* Brand — compact */}
+        <div className="flex flex-col items-center text-center mb-5">
+          <XAWarsLogo size={52} className="mb-2 drop-shadow-[0_0_12px_rgba(234,179,8,0.3)]" />
+          <h1 className="text-2xl font-bold uppercase tracking-wider text-yellow-500">
             XAWARS
           </h1>
-          <p className="mt-1 text-xs uppercase tracking-widest text-zinc-600">
-            Rainbow Six Siege Tool
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-medium">
+            Tactical Operator Roulette
           </p>
         </div>
 
-        {/* Mode-dependent content with fade/slide transition */}
-        <div
-          className={`space-y-6 transition-all ease-out ${
-            transitionPhase === 'out'
-              ? 'duration-150 opacity-0 translate-y-1 scale-[0.99]'
-              : transitionPhase === 'in'
-              ? 'duration-200 opacity-100 translate-y-0 scale-100'
-              : 'duration-0 opacity-100 translate-y-0 scale-100'
-          }`}
-        >
-          <p className="text-center text-sm text-zinc-500">
-            {displayedMode === 'login' ? 'Welcome back' : 'Create your account'}
-          </p>
+        {/* Auth card */}
+        <div className="auth-card">
+          {/* Mode-dependent content with transition */}
+          <div
+            className={`space-y-4 transition-all ease-out ${
+              transitionPhase === 'out'
+                ? 'duration-150 opacity-0 translate-y-1 scale-[0.99]'
+                : transitionPhase === 'in'
+                ? 'duration-200 opacity-100 translate-y-0 scale-100'
+                : 'duration-0 opacity-100 translate-y-0 scale-100'
+            }`}
+          >
+            <p className="text-center text-xs font-medium uppercase tracking-wider text-zinc-500">
+              {displayedMode === 'login' ? 'Welcome back, Agent' : 'Create your account'}
+            </p>
 
-          {/* OAuth Buttons (primary — Discord prominent) */}
-          <OAuthButtonGroup
-            onOAuthClick={handleOAuthClick}
-            loadingProvider={oauthLoading}
-            disabled={isSubmitting}
-          />
+            {/* OAuth */}
+            <OAuthButtonGroup
+              onOAuthClick={handleOAuthClick}
+              loadingProvider={oauthLoading}
+              disabled={isSubmitting}
+            />
 
-          {/* Auth Form */}
-          <AuthForm
-            mode={displayedMode}
-            onSubmit={handleFormSubmit}
-            isSubmitting={isSubmitting}
-            serverError={serverError}
-            onFieldChange={handleFieldChange}
-          />
+            {/* Form */}
+            <AuthForm
+              mode={displayedMode}
+              onSubmit={handleFormSubmit}
+              isSubmitting={isSubmitting}
+              serverError={serverError}
+              onFieldChange={handleFieldChange}
+            />
 
-          {/* Mode Toggle */}
-          <ModeToggle mode={displayedMode} onToggle={handleModeToggle} />
+            {/* Mode Toggle */}
+            <ModeToggle mode={displayedMode} onToggle={handleModeToggle} />
+          </div>
         </div>
 
-        {/* Guest Mode */}
-        <div className="pt-2">
+        {/* Guest Mode — below the card */}
+        <div className="mt-4 text-center">
           <button
             type="button"
             onClick={() => {
@@ -314,15 +280,50 @@ function LoginPageContent() {
               router.push(returnUrl);
             }}
             disabled={isSubmitting || oauthLoading !== null}
-            className="w-full rounded border border-zinc-700 bg-transparent px-4 py-3 text-sm font-medium text-zinc-400 transition-all duration-200 hover:border-zinc-500 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-xs font-medium text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-black rounded disabled:cursor-not-allowed disabled:opacity-50"
           >
             Continue as Guest
           </button>
-          <p className="mt-2 text-center text-xs text-zinc-600">
-            Your data will only be saved locally
+          <p className="mt-1 text-[10px] text-zinc-700">
+            Local data only — no cloud sync
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Atmospheric background with subtle grid texture and radial glow.
+ */
+function AuthBackground() {
+  return (
+    <>
+      {/* Radial glow */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 40%, rgba(234,179,8,0.03) 0%, transparent 60%)',
+        }}
+      />
+      {/* Grid texture */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        aria-hidden="true"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
+        }}
+      />
+      {/* Vignette */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%)',
+        }}
+      />
+    </>
   );
 }
