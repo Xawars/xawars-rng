@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dices, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useSoundContext } from './context/SoundContext';
+import { useAuth } from './context/AuthContext';
 import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { StatCounter } from './components/StatCounter';
@@ -24,6 +26,10 @@ import { MapAdvisor } from './components/MapAdvisor';
 import { FloatingGeneratorButton } from './components/FloatingGeneratorButton';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContentGeneratorModal } from './components/ContentGeneratorModal';
+import { ProtectedRoute, isGuestMode, clearGuestMode } from './components/auth/ProtectedRoute';
+import { TacticalEntry, WelcomeModal, FirstActionTooltip } from './components/onboarding';
+import { useOnboardingContext } from './components/onboarding/OnboardingProvider';
+import { AccountIndicator, SetCallsignModal, shouldPromptCallsign } from './components/account';
 import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
 import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
@@ -31,6 +37,18 @@ import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivi
 import { RankedDisplay, DEFAULT_RANKED_STATS, TIER_ORDER, DIVISION_RP_MAX, WIN_RP, LOSS_RP } from './components/RankedDisplay';
 
 export default function Home() {
+  return (
+    <ProtectedRoute>
+      <HomeContent />
+    </ProtectedRoute>
+  );
+}
+
+function HomeContent() {
+  const router = useRouter();
+  const { user, session, isGuest } = useAuth();
+  const { markFirstRoll } = useOnboardingContext();
+  const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
   const [currentOperator, setCurrentOperator] = usePersistedState<Operator | null>('xawars_currentOperator', null);
@@ -80,6 +98,13 @@ export default function Home() {
 
   const { playRoll, stopRoll, playReveal } = useAudioFeedback();
   const { isMuted, toggleMute } = useSoundContext();
+
+  // Check if existing user needs a callsign prompt
+  useEffect(() => {
+    if (shouldPromptCallsign(user, isGuest)) {
+      setShowCallsignPrompt(true);
+    }
+  }, [user, isGuest]);
 
   // --- AI Content Generator Handlers ---
 
@@ -141,6 +166,7 @@ export default function Home() {
     setIsRolling(true);
     playRoll();
     setTargetComplete(false);
+    markFirstRoll();
     // Simple timeout to simulate "rolling" feel
     setTimeout(() => {
       const op = getRandomOperator(currentSide || undefined);
@@ -414,7 +440,21 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
   const wallpaperPath = currentOperator ? `/ops/${currentOperator.id}_wallpaper.${wallpaperExt}` : null;
 
   return (
-    <main className={`min-h-screen text-zinc-100 p-4 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
+    <TacticalEntry>
+    <main className={`min-h-screen text-zinc-100 p-4 ${isGuestMode() && !session ? 'pt-12' : ''} font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
+
+      {/* Onboarding Welcome Modal */}
+      <WelcomeModal onDeploy={handleRoll} />
+
+      {/* Callsign prompt for existing users without a display name */}
+      {showCallsignPrompt && (
+        <SetCallsignModal onComplete={() => setShowCallsignPrompt(false)} />
+      )}
+
+      {/* Guest Mode Banner */}
+      {isGuestMode() && !session && (
+        <GuestModeBanner />
+      )}
 
       {/* Creator Tools Overlay */}
       <CreatorTools
@@ -561,6 +601,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                   Reset Run
                 </Button>
               )}
+              <AccountIndicator onOpenStats={() => setIsStatsModalOpen(true)} />
             </div>
           </header>
 
@@ -659,6 +700,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           )}
 
           {/* Action Button */}
+          <FirstActionTooltip>
           <Button
             onClick={handleRoll}
             disabled={isRolling}
@@ -668,6 +710,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           >
             {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
           </Button>
+          </FirstActionTooltip>
 
           
             </>
@@ -712,5 +755,28 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
       </div>
     </main>
+    </TacticalEntry>
+  );
+}
+
+function GuestModeBanner() {
+  const router = useRouter();
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-3 bg-zinc-900/95 border-b border-zinc-800 px-4 py-2 backdrop-blur-sm">
+      <span className="text-xs text-zinc-400">
+        Guest mode — your data is saved locally only
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          clearGuestMode();
+          router.push('/login');
+        }}
+        className="rounded bg-yellow-500/10 border border-yellow-500/30 px-3 py-1 text-xs font-medium text-yellow-500 transition-colors hover:bg-yellow-500/20 hover:border-yellow-500/50"
+      >
+        Sign in
+      </button>
+    </div>
   );
 }

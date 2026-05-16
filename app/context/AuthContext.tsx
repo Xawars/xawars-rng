@@ -2,10 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { clearGuestMode } from '../components/auth/ProtectedRoute';
 import type { AuthState, AuthResult, User, Session } from '../types/auth';
 
 interface AuthContextValue extends AuthState {
-  signUp: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string, callsign?: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signInWithOAuth: (provider: 'google' | 'discord') => Promise<void>;
   signOut: () => Promise<void>;
@@ -123,10 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         explicitSignOutRef.current = false;
       } else if (event === 'SIGNED_IN' && newSession) {
-        // User signed in — clear any session expired flag
+        // User signed in — clear any session expired flag and guest mode
         setUser(mapSupabaseUser(newSession.user));
         setSession(mapSupabaseSession(newSession));
         setSessionExpired(false);
+        clearGuestMode();
       } else if (newSession) {
         // Other events with a valid session (e.g., INITIAL_SESSION, USER_UPDATED)
         setUser(mapSupabaseUser(newSession.user));
@@ -143,13 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<AuthResult> => {
+  const signUp = useCallback(async (email: string, password: string, callsign?: string): Promise<AuthResult> => {
     if (!validatePassword(password)) {
       return { success: false, error: 'Password must be at least 8 characters long.' };
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: callsign ? { data: { display_name: callsign } } : undefined,
+      });
 
       if (error) {
         return { success: false, error: mapAuthError(error) };
