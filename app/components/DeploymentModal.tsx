@@ -1,10 +1,8 @@
 import { useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, X } from 'lucide-react';
+import { Check, X, Swords, ShieldHalf } from 'lucide-react';
 import { Button } from './ui/Button';
 import { OperatorDisplay } from './OperatorDisplay';
 import { Operator, Loadout, Platform } from '../data/types';
-import { getRoleColor } from '../data/roles';
 
 interface DeploymentModalProps {
     isOpen: boolean;
@@ -21,7 +19,6 @@ interface DeploymentModalProps {
 export function DeploymentModal({ isOpen, operator, loadout, matchType, platform, targetKills, role, onAccept, onReject }: DeploymentModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
-    // Close on Escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -34,10 +31,7 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, platform
 
     if (!isOpen || !operator) return null;
 
-    // Use portal to render at the root level, avoiding z-index issues
-    // Assuming there is a <div id="modal-root"></div> or we just append to body if we don't use portal strictly needed
-    // helpful for overlays. For simplicity in this project structure, we can just render it if we place it high up,
-    // but let's just use fixed positioning.
+    const isAttacker = operator.side === 'attacker';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -45,7 +39,6 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, platform
                 ref={modalRef}
                 className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300 slide-in-from-bottom-4"
             >
-
                 {/* Header */}
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
@@ -57,35 +50,46 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, platform
                 </div>
 
                 {/* Content */}
-                <div className="p-6 flex flex-col items-center">
-                    <div className="flex gap-2 mb-4">
+                <div className="p-4 flex flex-col items-center">
+                    {/* Info badges */}
+                    <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                        {/* Side */}
+                        <Badge
+                            color={isAttacker ? 'orange' : 'blue'}
+                            icon={isAttacker ? <Swords className="w-3 h-3" /> : <ShieldHalf className="w-3 h-3" />}
+                            label={isAttacker ? 'Attacker' : 'Defender'}
+                        />
+                        {/* Match Type */}
+                        {matchType && (
+                            <Badge color="yellow" label={matchType} />
+                        )}
+                        {/* Platform */}
                         {platform && (
-                            <div className="px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-full">
-                                <span className="text-purple-400 font-bold uppercase tracking-wider text-sm">
-                                    {platform}
-                                </span>
-                            </div>
+                            <Badge color="purple" label={platform} />
                         )}
-                        {targetKills && (
-                            <div className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-full">
-                                <span className="text-yellow-400 font-bold uppercase tracking-wider text-sm">
-                                    Target: {targetKills} Kills
-                                </span>
-                            </div>
+                        {/* Target Kills */}
+                        {targetKills && targetKills > 0 && (
+                            <Badge color="green" label={`Target: ${targetKills} Kills`} />
                         )}
+                        {/* Role */}
                         {role && (
-                            <div className={`px-4 py-2 ${getRoleColor(role as any)}/20 border ${getRoleColor(role as any)}/50 rounded-full`}>
-                                <span className={`${getRoleColor(role as any).replace('bg-', 'text-')} font-bold uppercase tracking-wider text-sm`}>
-                                    {role}
-                                </span>
-                            </div>
+                            <Badge color="cyan" label={role} />
                         )}
-                    </div>
-                    <div className="w-full mb-8">
-                        <OperatorDisplay operator={operator} loadout={loadout} matchType={matchType} platform={platform || undefined} isRolling={false} targetKills={targetKills} operatorKills={0} role={role} />
                     </div>
 
-                    <div className="flex gap-4 w-full">
+                    {/* Operator card */}
+                    <div className="w-full mb-4">
+                        <OperatorDisplay
+                            operator={operator}
+                            loadout={loadout}
+                            isRolling={false}
+                            targetKills={targetKills}
+                            operatorKills={0}
+                        />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 w-full">
                         <Button
                             onClick={onReject}
                             variant="outline"
@@ -97,7 +101,7 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, platform
                         <Button
                             onClick={onAccept}
                             variant="primary"
-                            className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
+                            className="flex-1"
                             icon={Check}
                         >
                             Deploy Operator
@@ -105,6 +109,24 @@ export function DeploymentModal({ isOpen, operator, loadout, matchType, platform
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+const BADGE_COLORS = {
+    orange: 'bg-orange-500/15 border-orange-500/40 text-orange-400',
+    blue: 'bg-blue-500/15 border-blue-500/40 text-blue-400',
+    yellow: 'bg-yellow-500/15 border-yellow-500/40 text-yellow-400',
+    purple: 'bg-purple-500/15 border-purple-500/40 text-purple-400',
+    green: 'bg-green-500/15 border-green-500/40 text-green-400',
+    cyan: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400',
+} as const;
+
+function Badge({ color, label, icon }: { color: keyof typeof BADGE_COLORS; label: string; icon?: React.ReactNode }) {
+    return (
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider ${BADGE_COLORS[color]}`}>
+            {icon}
+            {label}
         </div>
     );
 }

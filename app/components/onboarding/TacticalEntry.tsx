@@ -49,7 +49,7 @@ export function TacticalEntry({ children, onComplete }: TacticalEntryProps) {
 
   // Already played — just render children
   if (phase === 'done') {
-    return <div className="animate-entry-reveal">{children}</div>;
+    return <div className="animate-entry-reveal h-dvh h-screen overflow-hidden">{children}</div>;
   }
 
   return (

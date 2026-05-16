@@ -39,10 +39,12 @@ export interface DataContextValue {
   // Rank progression
   rankedStats: RankedStats;
   updateRankedStats: (platform: 'PC' | 'Console', stats: Partial<RankProgress>) => void;
+  resetRankedSeason: (platform: 'PC' | 'Console') => Promise<void>;
 
-  // Roulette history (stub — implemented in 5.3)
+  // Roulette history
   deploymentHistory: DeploymentRecord[];
   addDeployment: (record: DeploymentRecord) => void;
+  clearDeployments: () => Promise<void>;
 
   // Operator stats (stub — implemented in 5.5)
   operatorStats: Record<string, OperatorStatRecord>;
@@ -123,10 +125,42 @@ async function fetchRankedStatsFromCloud(userId: string): Promise<RankedStats | 
   }
 }
 
+/**
+ * Fetch deployment history from Supabase for the given user.
+ * Returns the most recent 50 deployments, ordered by deployed_at desc.
+ */
+async function fetchDeploymentsFromCloud(userId: string): Promise<DeploymentRecord[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('deployments')
+      .select('id, operator_id, operator_name, operator_side, loadout, match_type, platform, target_kills, role, deployed_at')
+      .eq('user_id', userId)
+      .order('deployed_at', { ascending: false })
+      .limit(50);
+
+    if (error || !data || data.length === 0) return null;
+
+    return data.map((row) => ({
+      id: row.id,
+      operatorId: row.operator_id,
+      operatorName: row.operator_name,
+      operatorSide: row.operator_side,
+      loadout: row.loadout,
+      matchType: row.match_type || undefined,
+      platform: row.platform || undefined,
+      targetKills: row.target_kills,
+      role: row.role || undefined,
+      deployedAt: row.deployed_at,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, isGuest, isLoading: authLoading } = useAuth();
   const [rankedStats, setRankedStats] = useState<RankedStats>(DEFAULT_RANKED_STATS);
-  const [deploymentHistory] = useState<DeploymentRecord[]>([]);
+  const [deploymentHistory, setDeploymentHistory] = useState<DeploymentRecord[]>([]);
   const [operatorStats] = useState<Record<string, OperatorStatRecord>>({});
   const [contentIdeas] = useState<SavedContentIdea[]>([]);
   const [migrationStatus, setMigrationStatus] = useState<'idle' | 'pending' | 'migrating' | 'complete' | 'failed'>('idle');
@@ -156,11 +190,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (cloudStats) {
         setRankedStats(cloudStats);
         saveLocalRankedStats(cloudStats);
-        hydratedUserRef.current = user.id;
-      } else {
-        // No cloud data yet — keep local state, mark as hydrated
-        hydratedUserRef.current = user.id;
       }
+
+      // Fetch deployment history from cloud
+      const cloudDeployments = await fetchDeploymentsFromCloud(user.id);
+      if (cloudDeployments) {
+        setDeploymentHistory(cloudDeployments);
+      }
+
+      hydratedUserRef.current = user.id;
     };
 
     hydrate();
@@ -205,11 +243,90 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, [user, isGuest]);
 
+  const resetRankedSeason = useCallback(async (platform: 'PC' | 'Console') => {
+    // Reset locally
+    setRankedStats((prev) => {
+      const updated: RankedStats = {
+        ...prev,
+        [platform]: {
+          ...prev[platform],
+          tier: 'Copper' as const,
+          division: 1 as const,
+          rp: 0,
+        },
+      };
+      saveLocalRankedStats(updated);
+      return updated;
+    });
+
+    // Delete from Supabase
+    if (user && !isGuest) {
+      const { error } = await supabase
+        .from('ranked_stats')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('platform', platform);
+
+      if (error) {
+        console.error('[XAWARS] Failed to reset ranked season:', error.message);
+      }
+    }
+  }, [user, isGuest]);
+
   // --- Stubs for features implemented in later tasks ---
 
-  const addDeployment = useCallback((_record: DeploymentRecord) => {
-    // Stub — will be implemented in task 5.3
-  }, []);
+  const addDeployment = useCallback((record: DeploymentRecord) => {
+    // Add to local state immediately (optimistic)
+    setDeploymentHistory(prev => [record, ...prev].slice(0, 50));
+
+    // If authenticated, write directly to Supabase
+    if (user && !isGuest) {
+      const payload = {
+        id: record.id,
+        user_id: user.id,
+        operator_id: record.operatorId,
+        operator_name: record.operatorName,
+        operator_side: record.operatorSide,
+        loadout: record.loadout,
+        match_type: record.matchType || null,
+        platform: record.platform || null,
+        target_kills: record.targetKills,
+        role: record.role || null,
+        deployed_at: record.deployedAt,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Write directly (don't rely solely on sync queue)
+      supabase.from('deployments').insert(payload).then(({ error }) => {
+        if (error) {
+          console.error('[XAWARS] Failed to save deployment:', error.message);
+          // Fallback: enqueue for retry
+          syncQueue.enqueue({
+            table: 'deployments',
+            operation: 'insert',
+            payload,
+          });
+        }
+      });
+    }
+  }, [user, isGuest]);
+
+  const clearDeployments = useCallback(async () => {
+    // Clear local state
+    setDeploymentHistory([]);
+
+    // If authenticated, delete all user's deployments from Supabase
+    if (user && !isGuest) {
+      const { error } = await supabase
+        .from('deployments')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('[XAWARS] Failed to clear deployments:', error.message);
+      }
+    }
+  }, [user, isGuest]);
 
   const updateOperatorStat = useCallback((_operatorId: string, _delta: { kills?: number; deaths?: number }) => {
     // Stub — will be implemented in task 5.5
@@ -251,8 +368,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value: DataContextValue = {
     rankedStats,
     updateRankedStats,
+    resetRankedSeason,
     deploymentHistory,
     addDeployment,
+    clearDeployments,
     operatorStats,
     updateOperatorStat,
     contentIdeas,

@@ -28,8 +28,23 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
 
   if (!operator || !loadout) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/50 border-2 border-dashed border-zinc-800 rounded-xl min-h-[300px] text-zinc-500">
-        <p className="font-mono uppercase tracking-widest text-sm">Waiting for Intel...</p>
+      <div className="relative flex flex-col items-center justify-center p-8 border border-zinc-800 rounded-xl h-full min-h-[200px] overflow-hidden">
+        {/* Subtle animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-800/50" />
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }} />
+        {/* Subtle glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-yellow-500/5 blur-3xl" />
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-full border border-zinc-700 bg-zinc-800/50 flex items-center justify-center">
+            <span className="text-xl text-zinc-600">?</span>
+          </div>
+          <p className="font-mono uppercase tracking-[0.2em] text-[11px] text-zinc-500">Waiting for Intel...</p>
+          <p className="text-[10px] text-zinc-600">Deploy an operator to begin</p>
+        </div>
       </div>
     );
   }
@@ -56,30 +71,30 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
             <img 
               src={bgPath} 
               alt="" 
-              className="w-full h-full object-cover object-top opacity-40 animate-ken-burns"
+              className="w-full h-full object-cover object-top opacity-50 animate-ken-burns"
               onError={() => setBgError(true)}
             />
           ) : (
             // Fallback Gradient if image fails
             <div className={`w-full h-full ${operator.side === 'attacker' ? 'bg-gradient-to-br from-orange-900/40 to-black' : 'bg-gradient-to-br from-blue-900/40 to-black'}`} />
           )}
-          {/* Overlay gradient to ensure text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/80 to-zinc-900" />
+          {/* Overlay gradient — keeps top visible for face, darkens bottom for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-zinc-900/60 to-zinc-900/95" />
         </div>
       )}
 
       {/* Content Layer */}
       <div className="relative z-10">
         {/* Operator Header */}
-        <div className="p-6 flex items-center justify-between">
+        <div className="p-3 flex items-center justify-between">
           <div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter drop-shadow-md">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter drop-shadow-md">
               {operator.name}
             </h2>
           </div>
           
           {/* Icon */}
-          <div className="h-16 w-16 flex items-center justify-center">
+          <div className="h-12 w-12 flex items-center justify-center">
             {iconSvg ? (
                <div 
                  className="w-full h-full flex items-center justify-center"
@@ -98,25 +113,43 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
 
         {/* Target Progress Bar */}
         {targetKills && targetKills > 0 && (
-          <div className="px-6 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">Target Progress</span>
-              <span className="text-xs font-bold text-zinc-300">{operatorKills} / {targetKills}</span>
-            </div>
-            <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 transition-all duration-300 ease-out"
-                style={{ width: `${Math.min((operatorKills / targetKills) * 100, 100)}%` }}
-              />
-            </div>
+          <div className="px-3 pb-2">
+            {operatorKills >= targetKills ? (
+              /* Completed state */
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Target Complete</span>
+                </div>
+                <span className="text-[10px] font-bold text-green-400">{operatorKills} / {targetKills}</span>
+              </div>
+            ) : (
+              /* In-progress state */
+              <>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Target Progress</span>
+                  <span className="text-[10px] font-bold text-zinc-300">{operatorKills} / {targetKills}</span>
+                </div>
+                <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min((operatorKills / targetKills) * 100, 100)}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* Loadout Grid */}
         {!hideLoadout && (
-          <div className="p-6 grid gap-6">
-            <LoadoutItem label="Primary Weapon" value={loadout.primary} />
-            <LoadoutItem label="Secondary Weapon" value={loadout.secondary} />
+          <div className="p-3 grid gap-2">
+            <LoadoutItem label="Primary" value={loadout.primary} />
+            <LoadoutItem label="Secondary" value={loadout.secondary} />
             <LoadoutItem label="Gadget" value={loadout.gadget} />
           </div>
         )}
@@ -127,9 +160,9 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
 
 function LoadoutItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col border-l-4 border-yellow-500/50 pl-4 bg-black/20 py-2 rounded-r-lg backdrop-blur-sm">
-      <span className="text-yellow-500/80 text-[10px] font-bold uppercase tracking-widest mb-0.5">{label}</span>
-      <span className="text-white text-xl font-black tracking-tight drop-shadow-sm">{value}</span>
+    <div className="flex flex-col border-l-3 border-yellow-500/50 pl-3 bg-black/20 py-1 rounded-r-lg backdrop-blur-sm">
+      <span className="text-yellow-500/80 text-[9px] font-bold uppercase tracking-widest">{label}</span>
+      <span className="text-white text-base font-black tracking-tight drop-shadow-sm">{value}</span>
     </div>
   );
 }

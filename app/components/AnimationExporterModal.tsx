@@ -546,7 +546,7 @@ export function AnimationExporterModal({ isOpen, onClose }: AnimationExporterMod
         </div>
 
         {/* Content */}
-        <div className="p-8 flex flex-col items-center max-h-[80vh] overflow-y-auto">
+        <div className="p-8 flex flex-col items-center max-h-[80vh] overflow-y-auto scrollbar-accent">
            <p className="text-zinc-400 text-sm mb-6 text-center">
              Generate a <b>WebM video with a transparent background</b> for your overlays.
            </p>
