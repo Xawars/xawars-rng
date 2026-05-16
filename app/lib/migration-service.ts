@@ -1,0 +1,404 @@
+/**
+ * Migration Service
+ *
+ * Detects existing localStorage data from the pre-auth app and migrates it
+ * to Supabase cloud storage for authenticated users.
+ *
+ * localStorage keys handled:
+ * - xawars_ranked_stats: RankedStats (PC/Console rank progression)
+ * - xawars_history: HistoryItem[] (deployment history)
+ * - xawars_operatorKills: Record<string, number> (per-operator kills)
+ * - xawars_operatorDeaths: Record<string, number> (per-operator deaths)
+ * - xawars_kills: number (total kills — informational, derived from operator kills)
+ * - xawars_deaths: number (total deaths — informational, derived from operator deaths)
+ * - content-idea-history: SavedContentIdea[] (saved content ideas)
+ */
+
+import { supabase } from './supabase';
+import { serializeContentIdea } from './content-ideas';
+import type { RankedStats } from '../data/types';
+import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
+
+/**
+ * Known localStorage keys that contain migratable app data.
+ */
+export const MIGRATABLE_KEYS = [
+  'xawars_ranked_stats',
+  'xawars_history',
+  'xawars_operatorKills',
+  'xawars_operatorDeaths',
+  'xawars_kills',
+  'xawars_deaths',
+  'content-idea-history',
+] as const;
+
+export type MigratableKey = (typeof MIGRATABLE_KEYS)[number];
+
+/**
+ * Result of a migration attempt.
+ */
+export interface MigrationResult {
+  success: boolean;
+  migratedKeys: string[];
+  errors: string[];
+}
+
+/**
+ * Detects whether any known app localStorage keys contain data.
+ * Returns true if at least one migratable key has a non-empty value.
+ */
+export function detectLocalStorageData(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  for (const key of MIGRATABLE_KEYS) {
+    try {
+      const value = localStorage.getItem(key);
+      if (value !== null && value !== '' && value !== 'null' && value !== '[]' && value !== '{}' && value !== '0') {
+        return true;
+      }
+    } catch {
+      // localStorage not available
+      continue;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Safely parses a localStorage value as JSON.
+ * Returns null if the key doesn't exist or parsing fails.
+ */
+function safeParseLocalStorage<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === '') return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Migrates ranked stats to Supabase.
+ */
+async function migrateRankedStats(userId: string): Promise<{ success: boolean; error?: string }> {
+  const stats = safeParseLocalStorage<RankedStats>('xawars_ranked_stats');
+  if (!stats || (!stats.PC && !stats.Console)) {
+    return { success: true }; // Nothing to migrate
+  }
+
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const platform of ['PC', 'Console'] as const) {
+    const platformStats = stats[platform];
+    if (platformStats) {
+      rows.push({
+        user_id: userId,
+        platform,
+        tier: platformStats.tier,
+        division: platformStats.division,
+        rp: platformStats.rp,
+        peak_tier: platformStats.peakTier,
+        peak_division: platformStats.peakDivision,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  if (rows.length === 0) return { success: true };
+
+  const { error } = await supabase.from('ranked_stats').upsert(rows, {
+    onConflict: 'user_id,platform',
+  });
+
+  if (error) {
+    return { success: false, error: `Ranked stats migration failed: ${error.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * HistoryItem shape as stored in localStorage (from HistoryList component).
+ */
+interface LocalHistoryItem {
+  id: number;
+  operator: {
+    id: string;
+    name: string;
+    side: 'attacker' | 'defender';
+    [key: string]: unknown;
+  };
+  loadout: {
+    primary: string;
+    secondary: string;
+    gadget: string;
+  };
+  matchType?: string;
+  platform?: string;
+  targetKills?: number;
+  role?: string;
+}
+
+/**
+ * Migrates deployment history to Supabase.
+ */
+async function migrateDeploymentHistory(userId: string): Promise<{ success: boolean; error?: string }> {
+  const history = safeParseLocalStorage<LocalHistoryItem[]>('xawars_history');
+  if (!history || history.length === 0) {
+    return { success: true }; // Nothing to migrate
+  }
+
+  // Transform HistoryItem[] to deployment records for Supabase
+  // Limit to 100 most recent (by id, which is a timestamp)
+  const sorted = [...history].sort((a, b) => b.id - a.id).slice(0, 100);
+
+  const rows = sorted.map((item) => ({
+    user_id: userId,
+    operator_id: item.operator.id,
+    operator_name: item.operator.name,
+    operator_side: item.operator.side,
+    loadout: item.loadout,
+    match_type: item.matchType || null,
+    platform: item.platform || null,
+    target_kills: item.targetKills ?? 0,
+    role: item.role || null,
+    deployed_at: new Date(item.id).toISOString(),
+  }));
+
+  const { error } = await supabase.from('deployments').insert(rows);
+
+  if (error) {
+    return { success: false, error: `Deployment history migration failed: ${error.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Migrates operator stats (kills, deaths, deployments) to Supabase.
+ * Combines data from xawars_operatorKills, xawars_operatorDeaths, and xawars_history.
+ */
+async function migrateOperatorStats(userId: string): Promise<{ success: boolean; error?: string }> {
+  const operatorKills = safeParseLocalStorage<Record<string, number>>('xawars_operatorKills');
+  const operatorDeaths = safeParseLocalStorage<Record<string, number>>('xawars_operatorDeaths');
+  const history = safeParseLocalStorage<LocalHistoryItem[]>('xawars_history');
+
+  // If no operator-level data exists, nothing to migrate
+  if (!operatorKills && !operatorDeaths) {
+    return { success: true };
+  }
+
+  // Build a map of operator stats from all sources
+  const operatorMap = new Map<string, {
+    operatorId: string;
+    operatorName: string;
+    operatorSide: 'attacker' | 'defender';
+    kills: number;
+    deaths: number;
+    deployments: number;
+  }>();
+
+  // Count deployments from history
+  if (history) {
+    for (const item of history) {
+      const id = item.operator.id;
+      if (!operatorMap.has(id)) {
+        operatorMap.set(id, {
+          operatorId: id,
+          operatorName: item.operator.name,
+          operatorSide: item.operator.side,
+          kills: 0,
+          deaths: 0,
+          deployments: 0,
+        });
+      }
+      operatorMap.get(id)!.deployments += 1;
+    }
+  }
+
+  // Apply kills
+  if (operatorKills) {
+    for (const [id, kills] of Object.entries(operatorKills)) {
+      if (operatorMap.has(id)) {
+        operatorMap.get(id)!.kills = kills;
+      } else {
+        // Operator has kills but no history entry — create a minimal record
+        operatorMap.set(id, {
+          operatorId: id,
+          operatorName: id, // Best effort — name not available without history
+          operatorSide: 'attacker', // Default — not determinable without history
+          kills,
+          deaths: 0,
+          deployments: 0,
+        });
+      }
+    }
+  }
+
+  // Apply deaths
+  if (operatorDeaths) {
+    for (const [id, deaths] of Object.entries(operatorDeaths)) {
+      if (operatorMap.has(id)) {
+        operatorMap.get(id)!.deaths = deaths;
+      } else {
+        operatorMap.set(id, {
+          operatorId: id,
+          operatorName: id,
+          operatorSide: 'attacker',
+          kills: 0,
+          deaths,
+          deployments: 0,
+        });
+      }
+    }
+  }
+
+  if (operatorMap.size === 0) return { success: true };
+
+  const rows = Array.from(operatorMap.values()).map((stat) => ({
+    user_id: userId,
+    operator_id: stat.operatorId,
+    operator_name: stat.operatorName,
+    operator_side: stat.operatorSide,
+    kills: stat.kills,
+    deaths: stat.deaths,
+    deployments: stat.deployments,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase.from('operator_stats').upsert(rows, {
+    onConflict: 'user_id,operator_id',
+  });
+
+  if (error) {
+    return { success: false, error: `Operator stats migration failed: ${error.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Migrates content ideas to Supabase.
+ */
+async function migrateContentIdeas(userId: string): Promise<{ success: boolean; error?: string }> {
+  const ideas = safeParseLocalStorage<SavedContentIdea[]>('content-idea-history');
+  if (!ideas || ideas.length === 0) {
+    return { success: true }; // Nothing to migrate
+  }
+
+  // Limit to 50 most recent
+  const sorted = [...ideas].sort(
+    (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+  ).slice(0, 50);
+
+  const rows = sorted.map((idea) => {
+    const serialized = serializeContentIdea(idea);
+    return {
+      id: serialized.id,
+      user_id: userId,
+      content_idea: serialized.content_idea,
+      story_hook: serialized.story_hook,
+      mission_directive: serialized.mission_directive,
+      title_variations: serialized.title_variations,
+      thumbnail_prompts: serialized.thumbnail_prompts,
+      saved_at: serialized.saved_at,
+    };
+  });
+
+  const { error } = await supabase.from('content_ideas').insert(rows);
+
+  if (error) {
+    return { success: false, error: `Content ideas migration failed: ${error.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Migrates all detected localStorage data to Supabase for the given user.
+ *
+ * For each data category:
+ * 1. Reads and parses the localStorage data
+ * 2. Transforms to the Supabase table format
+ * 3. Inserts into Supabase
+ * 4. Tracks which keys were successfully migrated
+ *
+ * On failure, localStorage is preserved and errors are reported.
+ */
+export async function migrateToCloud(userId: string): Promise<MigrationResult> {
+  const migratedKeys: string[] = [];
+  const errors: string[] = [];
+
+  // Migrate ranked stats
+  const rankedResult = await migrateRankedStats(userId);
+  if (rankedResult.success) {
+    if (safeParseLocalStorage('xawars_ranked_stats') !== null) {
+      migratedKeys.push('xawars_ranked_stats');
+    }
+  } else if (rankedResult.error) {
+    errors.push(rankedResult.error);
+  }
+
+  // Migrate deployment history
+  const deploymentResult = await migrateDeploymentHistory(userId);
+  if (deploymentResult.success) {
+    if (safeParseLocalStorage('xawars_history') !== null) {
+      migratedKeys.push('xawars_history');
+    }
+  } else if (deploymentResult.error) {
+    errors.push(deploymentResult.error);
+  }
+
+  // Migrate operator stats (kills + deaths combined)
+  const operatorResult = await migrateOperatorStats(userId);
+  if (operatorResult.success) {
+    if (safeParseLocalStorage('xawars_operatorKills') !== null) {
+      migratedKeys.push('xawars_operatorKills');
+    }
+    if (safeParseLocalStorage('xawars_operatorDeaths') !== null) {
+      migratedKeys.push('xawars_operatorDeaths');
+    }
+    if (safeParseLocalStorage('xawars_kills') !== null) {
+      migratedKeys.push('xawars_kills');
+    }
+    if (safeParseLocalStorage('xawars_deaths') !== null) {
+      migratedKeys.push('xawars_deaths');
+    }
+  } else if (operatorResult.error) {
+    errors.push(operatorResult.error);
+  }
+
+  // Migrate content ideas
+  const contentResult = await migrateContentIdeas(userId);
+  if (contentResult.success) {
+    if (safeParseLocalStorage('content-idea-history') !== null) {
+      migratedKeys.push('content-idea-history');
+    }
+  } else if (contentResult.error) {
+    errors.push(contentResult.error);
+  }
+
+  return {
+    success: errors.length === 0,
+    migratedKeys,
+    errors,
+  };
+}
+
+/**
+ * Clears the specified localStorage keys after successful migration.
+ * Only removes keys that were confirmed as successfully migrated.
+ */
+export function clearMigratedKeys(keys: string[]): void {
+  if (typeof window === 'undefined') return;
+
+  for (const key of keys) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Silently fail — key may already be removed or storage unavailable
+    }
+  }
+}
