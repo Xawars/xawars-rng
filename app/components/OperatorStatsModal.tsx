@@ -133,6 +133,8 @@ function ExportableCard({
   lastItem: HistoryItem | undefined;
 }) {
   if (!lastItem) return null;
+
+  const targetComplete = stat.objectiveTarget > 0 && kills >= stat.objectiveTarget;
   
   return (
     <div
@@ -187,14 +189,26 @@ function ExportableCard({
       </div>
       
       <div className="mt-3 pt-3 border-t border-zinc-800">
-        <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mb-1">Objective</div>
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-zinc-300 font-medium">{stat.objectiveKills} / {stat.objectiveTarget}</span>
-          <span className="text-zinc-500 font-bold">{Math.round(stat.objectiveProgress)}%</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            {targetComplete && (
+              <div className="w-3.5 h-3.5 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center">
+                <svg className="w-2 h-2 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+            )}
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${targetComplete ? 'text-green-400' : 'text-zinc-500'}`}>
+              {targetComplete ? 'Target Complete' : 'Objective'}
+            </span>
+          </div>
+          <span className={`text-xs font-bold ${targetComplete ? 'text-green-400' : 'text-zinc-300'}`}>
+            {kills} / {stat.objectiveTarget}
+          </span>
         </div>
         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-yellow-500 to-green-500"
+            className={`h-full ${targetComplete ? 'bg-green-500' : 'bg-gradient-to-r from-yellow-500 to-green-500'}`}
             style={{ width: `${Math.min(stat.objectiveProgress, 100)}%` }}
           />
         </div>

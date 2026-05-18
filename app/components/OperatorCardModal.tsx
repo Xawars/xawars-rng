@@ -53,6 +53,7 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
   const deaths = operatorDeaths[item.operator.id] || 0;
   const kd = deaths > 0 ? Math.round((kills / deaths) * 100) / 100 : null;
   const kdColor = kd !== null && kd >= 1 ? 'text-green-400' : 'text-red-400';
+  const targetComplete = item.targetKills && item.targetKills > 0 && kills >= item.targetKills;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -113,6 +114,18 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
               </>
             )}
           </div>
+          {targetComplete && (
+            <div className="px-4 py-2 bg-green-900/30 border-b border-green-500/30 flex items-center justify-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center">
+                <svg className="w-2.5 h-2.5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-green-400">
+                Target Complete — {kills} / {item.targetKills} Kills
+              </span>
+            </div>
+          )}
           <div className="p-6">
             <OperatorDisplay
               operator={item.operator}

@@ -50,7 +50,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
-  const { addDeployment, clearDeployments, updateRankedStats: syncRankedStats, resetRankedSeason } = useData();
+  const { addDeployment, deleteDeployment, clearDeployments, updateRankedStats: syncRankedStats, resetRankedSeason } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -178,13 +178,8 @@ function HomeContent() {
       // Use selected match type or random
       const matchType = currentMatchType || getRandomMatchType();
       
-      // Use selected platform or random (only if Ranked or no specific match type selected)
-      let platform: Platform | null = null;
-      if (currentPlatform) {
-        platform = currentPlatform;
-      } else if (matchType === 'Ranked') {
-        platform = getRandomPlatform();
-      }
+      // Use selected platform or random
+      const platform: Platform = currentPlatform || getRandomPlatform();
       
       const targetKills = getRandomTargetKills();
       const role = showRoles ? getRandomRole(op) : '';
@@ -233,26 +228,28 @@ function HomeContent() {
     setDeaths(0);
 
     // Add to history
+    const deploymentId = crypto.randomUUID();
     const newHistoryItem: HistoryItem = {
       id: Date.now(),
       operator: pendingOperator,
       loadout: pendingLoadout,
       matchType: pendingMatchType || undefined,
-      platform: pendingMatchType === 'Ranked' ? pendingPlatform || undefined : undefined,
+      platform: pendingPlatform || undefined,
       targetKills: pendingTargetKills,
-      role: pendingRole
+      role: pendingRole,
+      deploymentId,
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
     // Persist deployment to cloud
     addDeployment({
-      id: crypto.randomUUID(),
+      id: deploymentId,
       operatorId: pendingOperator.id,
       operatorName: pendingOperator.name,
       operatorSide: pendingOperator.side,
       loadout: pendingLoadout,
       matchType: pendingMatchType || undefined,
-      platform: pendingMatchType === 'Ranked' ? pendingPlatform || undefined : undefined,
+      platform: pendingPlatform || undefined,
       targetKills: pendingTargetKills,
       role: pendingRole || undefined,
       deployedAt: new Date().toISOString(),
@@ -630,6 +627,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               label="Kills"
               value={kills}
               onIncrement={() => {
+                // Don't allow incrementing past the target
+                if (currentOperator && currentTargetKills > 0) {
+                  const currentOpKills = operatorKills[currentOperator.id] || 0;
+                  if (currentOpKills >= currentTargetKills) return;
+                }
+
                 setKills(k => k + 1);
 
                 // Track operator kills
@@ -784,6 +787,24 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               operatorKills={operatorKills}
               currentOperatorId={currentOperator?.id || null}
               onItemClick={setSelectedHistoryItem}
+              onDeleteItem={(item) => {
+                setHistory(prev => prev.filter(h => h.id !== item.id));
+                if (item.deploymentId) {
+                  deleteDeployment(item.deploymentId);
+                }
+                // If the deleted item is the currently displayed operator, clear the center display
+                if (currentOperator?.id === item.operator.id) {
+                  setCurrentOperator(null);
+                  setCurrentLoadout(null);
+                  setCurrentMatchType(null);
+                  setCurrentPlatform(null);
+                  setCurrentTargetKills(0);
+                  setCurrentRole('');
+                  setKills(0);
+                  setDeaths(0);
+                  setTargetComplete(false);
+                }
+              }}
             />
           </div>
         )}

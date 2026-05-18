@@ -44,6 +44,7 @@ export interface DataContextValue {
   // Roulette history
   deploymentHistory: DeploymentRecord[];
   addDeployment: (record: DeploymentRecord) => void;
+  deleteDeployment: (id: string) => Promise<void>;
   clearDeployments: () => Promise<void>;
 
   // Operator stats (stub — implemented in 5.5)
@@ -311,6 +312,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isGuest]);
 
+  const deleteDeployment = useCallback(async (id: string) => {
+    // Remove from local state immediately (optimistic)
+    setDeploymentHistory(prev => prev.filter(d => d.id !== id));
+
+    // If authenticated, delete from Supabase
+    if (user && !isGuest) {
+      const { error } = await supabase
+        .from('deployments')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('[XAWARS] Failed to delete deployment:', error.message);
+      }
+    }
+  }, [user, isGuest]);
+
   const clearDeployments = useCallback(async () => {
     // Clear local state
     setDeploymentHistory([]);
@@ -371,6 +390,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     resetRankedSeason,
     deploymentHistory,
     addDeployment,
+    deleteDeployment,
     clearDeployments,
     operatorStats,
     updateOperatorStat,
