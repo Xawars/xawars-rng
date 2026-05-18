@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { Operator, Loadout, Platform } from '../data/types';
 import { OperatorIcon } from './OperatorIcon';
 
@@ -11,6 +13,7 @@ export interface HistoryItem {
   platform?: Platform;
   targetKills?: number;
   role?: string;
+  deploymentId?: string;
 }
 
 type DeploymentStatus = 'completed' | 'in-progress' | 'pending';
@@ -20,6 +23,7 @@ interface HistoryListProps {
   operatorKills?: Record<string, number>;
   currentOperatorId?: string | null;
   onItemClick?: (item: HistoryItem) => void;
+  onDeleteItem?: (item: HistoryItem) => void;
 }
 
 function getStatus(
@@ -61,7 +65,9 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-export function HistoryList({ history, operatorKills = {}, currentOperatorId = null, onItemClick }: HistoryListProps) {
+export function HistoryList({ history, operatorKills = {}, currentOperatorId = null, onItemClick, onDeleteItem }: HistoryListProps) {
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+
   if (history.length === 0) return null;
 
   return (
@@ -72,12 +78,13 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
         {history.map((item) => {
           const status = getStatus(item, operatorKills, currentOperatorId);
           const cfg = STATUS_CONFIG[status];
+          const isConfirming = confirmingId === item.id;
 
           return (
             <div
               key={item.id}
-              onClick={() => onItemClick?.(item)}
-              className="flex items-center gap-3 bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-lg backdrop-blur-sm cursor-pointer hover:border-yellow-500/50 hover:bg-zinc-800/80 transition-colors"
+              onClick={() => !isConfirming && onItemClick?.(item)}
+              className="flex items-center gap-3 bg-zinc-900/80 border border-zinc-800 p-2.5 rounded-lg backdrop-blur-sm cursor-pointer hover:border-yellow-500/50 hover:bg-zinc-800/80 transition-colors group"
             >
               {/* Mini Icon */}
               <div className={`h-9 w-9 shrink-0 rounded-md flex items-center justify-center font-bold text-lg ${item.operator.side === 'attacker' ? 'bg-orange-900/20 text-orange-500' : 'bg-blue-900/20 text-blue-500'}`}>
@@ -105,10 +112,41 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
                 </div>
               </div>
 
-              {/* Side indicator */}
-              <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${item.operator.side === 'attacker' ? 'text-orange-500/60' : 'text-blue-500/60'}`}>
-                {item.operator.side === 'attacker' ? 'ATK' : 'DEF'}
-              </span>
+              {/* Side indicator + Delete */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${item.operator.side === 'attacker' ? 'text-orange-500/60' : 'text-blue-500/60'}`}>
+                  {item.operator.side === 'attacker' ? 'ATK' : 'DEF'}
+                </span>
+
+                {onDeleteItem && (
+                  isConfirming ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteItem(item);
+                        setConfirmingId(null);
+                      }}
+                      className="p-1 rounded text-red-400 bg-red-500/20 border border-red-500/40 hover:bg-red-500/30 transition-colors"
+                      aria-label={`Confirm delete ${item.operator.name}`}
+                      title="Click to confirm"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmingId(item.id);
+                      }}
+                      className="p-1 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                      aria-label={`Delete ${item.operator.name} deployment`}
+                      title="Delete deployment"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           );
         })}

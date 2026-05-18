@@ -34,7 +34,7 @@ export function useOperatorStats(
         totalDeaths: 0,
         kd: null,
         objectiveKills: 0,
-        objectiveTarget: 0,
+        objectiveTarget: item.targetKills || 0,
         objectiveProgress: 0,
         deployments: 0,
         lastUsed: item.id,
@@ -42,7 +42,11 @@ export function useOperatorStats(
     }
     const stat = opMap.get(id)!;
     stat.deployments += 1;
-    if (item.id > stat.lastUsed) stat.lastUsed = item.id;
+    if (item.id > stat.lastUsed) {
+      stat.lastUsed = item.id;
+      // Use the target from the most recent deployment
+      stat.objectiveTarget = item.targetKills || 0;
+    }
   }
 
   for (const [id, kills] of Object.entries(operatorKills)) {
@@ -65,9 +69,6 @@ export function useOperatorStats(
       : null;
 
     stat.objectiveKills = stat.totalKills;
-    stat.objectiveTarget = stat.deployments > 0
-      ? Math.round(stat.objectiveKills / (stat.deployments * 0.5))
-      : 0;
     stat.objectiveProgress = stat.objectiveTarget > 0
       ? Math.min((stat.objectiveKills / stat.objectiveTarget) * 100, 100)
       : 0;
