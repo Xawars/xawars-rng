@@ -14,9 +14,10 @@ export interface HistoryItem {
   targetKills?: number;
   role?: string;
   deploymentId?: string;
+  surrendered?: boolean;
 }
 
-type DeploymentStatus = 'completed' | 'in-progress' | 'pending';
+type DeploymentStatus = 'completed' | 'in-progress' | 'pending' | 'surrendered';
 
 interface HistoryListProps {
   history: HistoryItem[];
@@ -33,6 +34,9 @@ function getStatus(
 ): DeploymentStatus {
   const kills = operatorKills[item.operator.id] || 0;
   const target = item.targetKills || 0;
+
+  // If surrendered, show that status
+  if (item.surrendered) return 'surrendered';
 
   // If target is met, it's completed
   if (target > 0 && kills >= target) return 'completed';
@@ -56,6 +60,12 @@ const STATUS_CONFIG = {
     bg: 'bg-yellow-500/15',
     border: 'border-yellow-500/40',
     text: 'text-yellow-400',
+  },
+  'surrendered': {
+    label: 'Surrendered',
+    bg: 'bg-red-500/10',
+    border: 'border-red-500/30',
+    text: 'text-red-400',
   },
   'pending': {
     label: 'Past',
