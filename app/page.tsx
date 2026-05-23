@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dices, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Dices, RotateCcw, Volume2, VolumeX, UserRoundSearch, Flag } from 'lucide-react';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useSoundContext } from './context/SoundContext';
@@ -24,7 +24,7 @@ import { SideSelector } from './components/SideSelector';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { MapAdvisor } from './components/MapAdvisor';
-import { FloatingGeneratorButton } from './components/FloatingGeneratorButton';
+import { OperatorPickerModal } from './components/OperatorPickerModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContentGeneratorModal } from './components/ContentGeneratorModal';
 import { ProtectedRoute, isGuestMode, clearGuestMode } from './components/auth/ProtectedRoute';
@@ -94,7 +94,8 @@ function HomeContent() {
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor'>('roulette');
+  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -135,14 +136,6 @@ function HomeContent() {
     }
   }, [apiKey, activeProvider, setApiKey]);
 
-  const handleGeneratorClick = useCallback(() => {
-    const validation = validateApiKey(activeProvider, apiKey);
-    if (!validation.valid) {
-      setIsApiKeyModalOpen(true);
-    } else {
-      setIsGeneratorOpen(true);
-    }
-  }, [apiKey, activeProvider]);
 
   const handleApiKeySave = useCallback((key: string, provider: ProviderId) => {
     setApiKey(key);
@@ -201,6 +194,25 @@ function HomeContent() {
       // NOTE: We delay the reveal sound until acceptance or maybe play a "ready" sound here?
       // For now, let's keep silence or a "tick" sound, and play the BIG reveal on accept.
     }, 1200);
+  };
+
+  const handleManualPick = (op: Operator) => {
+    setIsPickerOpen(false);
+    const loadout = generateLoadout(op);
+    const matchType = currentMatchType || getRandomMatchType();
+    const platform: Platform = currentPlatform || getRandomPlatform();
+    const targetKills = getRandomTargetKills();
+    const role = showRoles ? getRandomRole(op) : '';
+
+    setPendingOperator(op);
+    setPendingLoadout(loadout);
+    setPendingMatchType(matchType);
+    setPendingPlatform(platform);
+    setPendingTargetKills(targetKills);
+    setPendingRole(role);
+
+    setIsModalOpen(true);
+    markFirstRoll();
   };
 
   const handleAccept = () => {
@@ -275,6 +287,31 @@ function HomeContent() {
     setPendingPlatform(null);
     setPendingTargetKills(0);
     setPendingRole('');
+  };
+
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+
+  const handleSurrender = () => {
+    if (!currentOperator) return;
+
+    // Mark the current deployment as surrendered in history
+    setHistory(prev => prev.map(item => 
+      item.operator.id === currentOperator.id && !item.surrendered
+        ? { ...item, surrendered: true }
+        : item
+    ));
+
+    // Clear the active deployment without removing history
+    setCurrentOperator(null);
+    setCurrentLoadout(null);
+    setCurrentMatchType(null);
+    setCurrentPlatform(null);
+    setCurrentTargetKills(0);
+    setCurrentRole('');
+    setKills(0);
+    setDeaths(0);
+    setTargetComplete(false);
+    setShowSurrenderConfirm(false);
   };
 
   const handleReset = () => {
@@ -450,7 +487,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
   return (
     <TacticalEntry>
-    <main className={`h-dvh h-screen text-zinc-100 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
+    <main className={`h-dvh text-zinc-100 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
 
       {/* Onboarding Welcome Modal */}
       <WelcomeModal onDeploy={handleRoll} />
@@ -502,7 +539,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             />
           ) : (
             // Fallback Gradient
-            <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black" />
+            <div className="w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-zinc-900 via-black to-black" />
           )}
         </div>
       )}
@@ -520,8 +557,15 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         onReject={handleReject}
       />
 
+      {/* Manual Operator Picker */}
+      <OperatorPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleManualPick}
+        currentSide={currentSide}
+      />
+
       {/* AI Content Generator */}
-      <FloatingGeneratorButton onClick={handleGeneratorClick} />
       <ApiKeyModal
         isOpen={isApiKeyModalOpen}
         onClose={() => {
@@ -580,6 +624,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               >
                 Map Advisor
               </button>
+              <button
+                onClick={() => setViewMode('content')}
+                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                  viewMode === 'content'
+                    ? 'bg-yellow-500 text-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Content
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -596,7 +650,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         </header>
 
         {/* Content area — fills remaining height */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,448px)_1fr] gap-4 lg:gap-6 pt-4">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,560px)_1fr] gap-4 lg:gap-6 pt-4">
 
           {/* Left Column - Ranked Display (hidden on small screens) */}
           <div className="hidden lg:flex justify-end overflow-y-auto scrollbar-auto-hide pr-2">
@@ -613,11 +667,26 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         </div>
 
         {/* Center Column - Main Content */}
-        <div className="max-w-[448px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-hidden">
+        <div className="max-w-[560px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-y-auto overflow-x-hidden scrollbar-auto-hide">
 
           {viewMode === 'map-advisor' ? (
             <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
               <MapAdvisor />
+            </div>
+          ) : viewMode === 'content' ? (
+            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
+              <ContentGeneratorModal
+                isOpen={true}
+                onClose={() => setViewMode('roulette')}
+                idea={currentIdea}
+                isGenerating={isGenerating}
+                error={generatorError}
+                onGenerate={() => handleGenerate()}
+                onClearApiKey={handleClearApiKey}
+                activeProvider={activeProvider}
+                onChangeProvider={() => setIsApiKeyModalOpen(true)}
+                embedded
+              />
             </div>
           ) : (
             <>
@@ -698,7 +767,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           </div>
 
           {/* Operator Card area */}
-          <div id="operator-card-container" className="shrink-0 mt-3 relative">
+          <div id="operator-card-container" className="shrink-0 mt-3 relative px-2">
             <RollAnimation isRolling={isRolling} side={currentSide} />
             <OperatorDisplay
               operator={currentOperator}
@@ -714,9 +783,9 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
           {/* Target Complete Overlay — shows on top of operator card */}
           {targetComplete && currentOperator && (
-            <div className="shrink-0 mt-2 relative overflow-hidden rounded-xl border border-green-500/30 bg-gradient-to-b from-green-900/30 via-zinc-900/90 to-zinc-900 p-4">
+            <div className="shrink-0 mt-2 relative overflow-hidden rounded-xl border border-green-500/30 bg-linear-to-b from-green-900/30 via-zinc-900/90 to-zinc-900 p-4">
               {/* Background glow */}
-              <div className="absolute inset-0 bg-gradient-to-t from-transparent to-green-500/5 pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-t from-transparent to-green-500/5 pointer-events-none" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-green-500/10 blur-3xl pointer-events-none" />
               
               <div className="relative z-10 flex flex-col items-center gap-2">
@@ -749,19 +818,69 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             </div>
           )}
 
-          {/* Action Button — always at bottom */}
-          <div className="shrink-0 mt-3">
-            <FirstActionTooltip>
-            <Button
-              onClick={handleRoll}
-              disabled={isRolling}
-              size="md"
-              className={`w-full transition-all active:scale-95 ${isRolling ? 'animate-button-press' : ''}`}
-              icon={Dices}
-            >
-              {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
-            </Button>
-            </FirstActionTooltip>
+          {/* Action Buttons — always at bottom */}
+          <div className="shrink-0 mt-3 pb-4 flex flex-col gap-2">
+            {/* Primary actions row */}
+            <div className="flex gap-2">
+              <FirstActionTooltip>
+              <Button
+                onClick={handleRoll}
+                disabled={isRolling}
+                size="md"
+                className={`flex-1 transition-all active:scale-95 ${isRolling ? 'animate-button-press' : ''}`}
+                icon={Dices}
+              >
+                {currentOperator ? 'Reroll Operator' : 'Deploy Operator'}
+              </Button>
+              </FirstActionTooltip>
+              <Button
+                onClick={() => setIsPickerOpen(true)}
+                disabled={isRolling}
+                variant="outline"
+                size="md"
+                className="transition-all active:scale-95"
+                icon={UserRoundSearch}
+              >
+                Pick
+              </Button>
+            </div>
+
+            {/* Surrender row — only when deployed and target not complete */}
+            {currentOperator && !targetComplete && (
+              showSurrenderConfirm ? (
+                <div className="flex gap-2 items-center justify-center p-2 rounded-lg border border-red-500/20 bg-red-500/5">
+                  <span className="text-xs text-red-400 font-medium">Abandon this deployment?</span>
+                  <Button
+                    onClick={handleSurrender}
+                    variant="outline"
+                    size="sm"
+                    className="transition-all active:scale-95 border-red-500/50 text-red-400 hover:bg-red-500/10"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    onClick={() => setShowSurrenderConfirm(false)}
+                    variant="ghost"
+                    size="sm"
+                    className="transition-all active:scale-95 text-zinc-400"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowSurrenderConfirm(true)}
+                  disabled={isRolling}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full transition-all active:scale-95 text-red-400/60 hover:text-red-400 hover:bg-red-500/5"
+                  icon={Flag}
+                  title="Surrender current deployment"
+                >
+                  Surrender Deployment
+                </Button>
+              )
+            )}
           </div>
 
           
@@ -772,7 +891,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
         {/* Right Column - History - Hide in streamer mode */}
         {!isStreamerMode && (
-          <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-2">
+          <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-4 border-gradient-fade">
             <Button
               variant="outline"
               size="sm"

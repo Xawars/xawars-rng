@@ -17,7 +17,7 @@ export function CreatorTools({
     onOpenAnimationExporter
 }: CreatorToolsProps) {
     return (
-        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 p-2 bg-black/50 backdrop-blur-md rounded-lg border border-white/10 transition-opacity hover:opacity-100 opacity-50">
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 p-2 bg-black/50 backdrop-blur-md rounded-lg border border-white/10 transition-opacity hover:opacity-100 opacity-50">
             <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest text-center mb-1">Tools</h3>
 
             <Button
