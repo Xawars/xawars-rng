@@ -12,7 +12,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - Include the `XPSource` extension type adding `'challenge_completed'` and `'mastery_streak_bonus'`
     - _Requirements: 15.2_
 
-  - [ ] 1.2 Create tier thresholds and canonical XP formula constants
+  - [x] 1.2 Create tier thresholds and canonical XP formula constants
     - Create `app/lib/mastery/tier-thresholds.ts` with the `TIER_THRESHOLDS` array and `computeTier(points)` / `pointsToNextTier(points)` pure functions
     - Create `app/lib/mastery/xp-invariant.ts` with `CANONICAL_MULTIPLIERS`, `canonicalXpReward(slot, targetCount)`, `validateXp(challenge)`, and `validateAdminOverride(next)` functions
     - _Requirements: 7.4, 16.1, 16.2, 16.5, 16.6, 16.7, 16.10_
