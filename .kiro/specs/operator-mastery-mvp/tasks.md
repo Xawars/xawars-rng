@@ -17,7 +17,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - Create `app/lib/mastery/xp-invariant.ts` with `CANONICAL_MULTIPLIERS`, `canonicalXpReward(slot, targetCount)`, `validateXp(challenge)`, and `validateAdminOverride(next)` functions
     - _Requirements: 7.4, 16.1, 16.2, 16.5, 16.6, 16.7, 16.10_
 
-  - [ ] 1.3 Create Supabase migration for new tables
+  - [x] 1.3 Create Supabase migration for new tables
     - Create a SQL migration file that creates `challenges`, `operator_mastery`, `mastery_badges`, `mastery_streak`, `match_results` tables with all constraints, indexes, and RLS policies as defined in the design
     - Add the nullable `match_result` column to the existing `deployments` table
     - _Requirements: 12.1, 15.4_

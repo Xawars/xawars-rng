@@ -20,6 +20,7 @@ This folder contains SQL migrations for the XAWARS RNG Supabase database. Migrat
 | File | Description |
 |------|-------------|
 | `001_initial_schema.sql` | Creates all application tables, RLS policies, indexes, and triggers |
+| `002_operator_mastery_tables.sql` | Creates mastery system tables (challenges, operator_mastery, mastery_badges, mastery_streak, match_results) and adds `match_result` column to deployments |
 
 ---
 
