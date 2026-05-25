@@ -6,7 +6,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
 
 ## Tasks
 
-- [ ] 1. Set up types, schema, and core constants
+- [x] 1. Set up types, schema, and core constants
   - [x] 1.1 Create TypeScript types for the mastery module
     - Create `app/types/mastery.ts` with all exported types: `ChallengeSlot`, `Objective`, `RestrictionKind`, `OperatorScope`, `MasteryTier`, `MatchResult`, `Restriction`, `Challenge`, `OperatorMastery`, `MasteryBadge`, `MasteryStreakState`, `MatchResultRow`, `Eligibility`, `MatchResultReportOutcome`, `ActivateResult`, `MasteryEvent`, `StreakDelta`
     - Include the `XPSource` extension type adding `'challenge_completed'` and `'mastery_streak_bonus'`
@@ -22,7 +22,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - Add the nullable `match_result` column to the existing `deployments` table
     - _Requirements: 12.1, 15.4_
 
-  - [ ] 1.4 Write property tests for tier thresholds and XP formula (Properties 1, 12)
+  - [x] 1.4 Write property tests for tier thresholds and XP formula (Properties 1, 12)
     - **Property 1: Canonical XP Formula invariant** — For any Challenge without xp_override, xp_reward equals target_count × multiplier for its slot
     - **Property 12: Mastery_Tier threshold table** — computeTier returns correct tier for any non-negative integer points
     - **Validates: Requirements 7.4, 16.1, 16.2, 16.5, 16.6, 16.7, 16.10**
