@@ -28,7 +28,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - **Validates: Requirements 7.4, 16.1, 16.2, 16.5, 16.6, 16.7, 16.10**
 
 - [ ] 2. Implement Challenge_Engine (pure logic)
-  - [ ] 2.1 Implement challenge generation functions
+  - [x] 2.1 Implement challenge generation functions
     - Create `app/lib/mastery/challenge-engine.ts` with `generateDaily`, `generateWeekly`, `generateOperatorMissions` functions
     - Implement constraint-relaxation retry logic (up to 5 attempts, drop restriction first, then role)
     - Implement random pool selection (1–5 operators) and gadget restriction validation against operator catalog
