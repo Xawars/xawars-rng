@@ -8,11 +8,13 @@ import { operators } from '@/app/data/operators';
 import type {
   Challenge,
   ChallengeSlot,
+  Eligibility,
   Objective,
   OperatorScope,
   Restriction,
   RestrictionKind,
 } from '@/app/types/mastery';
+import type { DeploymentRecord } from '@/app/types/database';
 import { canonicalXpReward } from './xp-invariant';
 
 // --- ID Generation ---
@@ -595,6 +597,103 @@ export function generateOperatorMissions(
   return results;
 }
 
+// --- Eligibility Classification ---
+
+/**
+ * Evaluate whether a Deployment is eligible for a given Active_Challenge.
+ *
+ * A Deployment is fully eligible if and only if all three sub-checks pass:
+ * 1. Operator scope — the deployment's operator matches the challenge's scope
+ * 2. Role — the deployment's role matches the challenge's role (or challenge has no role)
+ * 3. Restriction — the deployment satisfies the challenge's restriction (or challenge has none)
+ *
+ * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8
+ */
+export function evaluateEligibility(
+  deployment: DeploymentRecord,
+  challenge: Challenge
+): Eligibility {
+  const operatorScopeOk = checkOperatorScope(deployment, challenge);
+  const roleOk = checkRole(deployment, challenge);
+  const restrictionOk = checkRestriction(deployment, challenge);
+
+  return {
+    operatorScopeOk,
+    roleOk,
+    restrictionOk,
+    fullyEligible: operatorScopeOk && roleOk && restrictionOk,
+  };
+}
+
+/**
+ * Check operator scope eligibility.
+ *
+ * - 'any': always eligible (Req 3.2)
+ * - 'random_pool': eligible if deployment's operatorId is in the challenge's operator pool (Req 3.3)
+ * - 'specific_operator': eligible if deployment's operatorId equals the pool's single entry (Req 3.4)
+ */
+function checkOperatorScope(
+  deployment: DeploymentRecord,
+  challenge: Challenge
+): boolean {
+  switch (challenge.operatorScope) {
+    case 'any':
+      return true;
+    case 'random_pool':
+      return challenge.operatorPool.includes(deployment.operatorId);
+    case 'specific_operator':
+      return (
+        challenge.operatorPool.length === 1 &&
+        challenge.operatorPool[0] === deployment.operatorId
+      );
+    default:
+      return false;
+  }
+}
+
+/**
+ * Check role eligibility.
+ *
+ * - If the challenge has no role (null), any deployment role is eligible (Req 3.5)
+ * - If the challenge specifies a role, the deployment's role must match exactly (Req 3.5)
+ */
+function checkRole(
+  deployment: DeploymentRecord,
+  challenge: Challenge
+): boolean {
+  if (challenge.role === null) return true;
+  return deployment.role === challenge.role;
+}
+
+/**
+ * Check restriction eligibility.
+ *
+ * - If the challenge has no restriction (null), any deployment is eligible
+ * - 'gadget_only': deployment's loadout gadget must equal the restriction value (Req 3.6)
+ * - 'loadout_limit': deployment's loadout primary OR secondary must equal the restriction value (Req 3.7)
+ * - 'playstyle': deployment's role must equal the restriction value (Req 3.8)
+ */
+function checkRestriction(
+  deployment: DeploymentRecord,
+  challenge: Challenge
+): boolean {
+  if (challenge.restriction === null) return true;
+
+  switch (challenge.restriction.kind) {
+    case 'gadget_only':
+      return deployment.loadout.gadget === challenge.restriction.value;
+    case 'loadout_limit':
+      return (
+        deployment.loadout.primary === challenge.restriction.value ||
+        deployment.loadout.secondary === challenge.restriction.value
+      );
+    case 'playstyle':
+      return deployment.role === challenge.restriction.value;
+    default:
+      return false;
+  }
+}
+
 // --- Exported for testing ---
 
 export const _internal = {
@@ -609,6 +708,9 @@ export const _internal = {
   chooseOperatorScope,
   selectOperatorPool,
   generateChallenge,
+  checkOperatorScope,
+  checkRole,
+  checkRestriction,
   ALL_ROLES,
   ALL_GADGETS,
   ALL_WEAPONS,
