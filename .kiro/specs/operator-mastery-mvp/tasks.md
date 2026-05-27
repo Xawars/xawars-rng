@@ -35,7 +35,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - Ensure generated challenges always have xp_override/xp_override_reason as null
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 16.2, 16.8_
 
-  - [ ] 2.2 Implement eligibility classification
+  - [x] 2.2 Implement eligibility classification
     - Add `evaluateEligibility(deployment, challenge)` function that checks operator scope, role, and restriction
     - Return an `Eligibility` object with `operatorScopeOk`, `roleOk`, `restrictionOk`, and `fullyEligible` fields
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
