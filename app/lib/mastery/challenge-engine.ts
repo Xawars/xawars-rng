@@ -9,6 +9,7 @@ import type {
   Challenge,
   ChallengeSlot,
   Eligibility,
+  MatchResult,
   Objective,
   OperatorScope,
   Restriction,
@@ -421,12 +422,17 @@ function generateChallenge(
 
     // For gadget_only restriction, validate the gadget exists in ALL operators in the pool
     if (constraints.restriction?.kind === 'gadget_only') {
-      const gadgetValid = effectivePool.every((op) =>
+      // When operator_scope is 'any', the gadget must be valid for ALL operators
+      // in the catalog (since any operator could be deployed).
+      const validationPool =
+        constraints.operatorScope === 'any' ? [...operators] : effectivePool;
+
+      const gadgetValid = validationPool.every((op) =>
         op.gadgets.includes(constraints.restriction!.value)
       );
       if (!gadgetValid) {
-        // Find a common gadget instead
-        const commonGadgets = findCommonGadgets(effectivePool);
+        // Find a common gadget for the validation pool
+        const commonGadgets = findCommonGadgets(validationPool);
         if (commonGadgets.length === 0) {
           // Drop restriction
           constraints.restriction = null;
@@ -436,6 +442,9 @@ function generateChallenge(
             value: randomElement(commonGadgets),
           };
         }
+        // Re-compute effective pool with the updated restriction
+        effectivePool = getEffectivePool(constraints.role, constraints.restriction);
+        if (effectivePool.length === 0) continue;
       }
     }
 
@@ -692,6 +701,131 @@ function checkRestriction(
     default:
       return false;
   }
+}
+
+// --- Challenge Progress Application ---
+
+/**
+ * Apply deployment-acceptance progress to a challenge.
+ *
+ * Increments progress by 1 if:
+ * - The challenge's objective is 'complete_deployments'
+ * - The deployment is fully eligible for the challenge
+ *
+ * Progress is capped at target_count and never goes below 0.
+ * Returns a new Challenge object (immutable update).
+ *
+ * Requirements: 4.1, 4.5
+ */
+export function applyDeploymentProgress(
+  deployment: DeploymentRecord,
+  challenge: Challenge
+): Challenge {
+  // Only applies to complete_deployments objective
+  if (challenge.objective !== 'complete_deployments') return challenge;
+
+  // Check eligibility
+  const eligibility = evaluateEligibility(deployment, challenge);
+  if (!eligibility.fullyEligible) return challenge;
+
+  // Increment, capped at target_count
+  const nextProgress = Math.min(challenge.targetCount, challenge.progress + 1);
+  return { ...challenge, progress: nextProgress };
+}
+
+/**
+ * Apply match-result progress to a challenge.
+ *
+ * Increments progress by 1 if:
+ * - The challenge's objective is 'win_rounds' and result is 'win'
+ * - The challenge's objective is 'survive_rounds' and result is 'survived_round'
+ * - The deployment is fully eligible for the challenge
+ *
+ * A 'loss' result never increments any challenge.
+ * Progress is capped at target_count and never goes below 0.
+ * Returns a new Challenge object (immutable update).
+ *
+ * Requirements: 4.2, 4.3, 4.5
+ */
+export function applyMatchResultProgress(
+  deployment: DeploymentRecord,
+  result: MatchResult,
+  challenge: Challenge
+): Challenge {
+  // Determine if this result type matches the challenge objective
+  const objectiveMatches =
+    (challenge.objective === 'win_rounds' && result === 'win') ||
+    (challenge.objective === 'survive_rounds' && result === 'survived_round');
+
+  if (!objectiveMatches) return challenge;
+
+  // Check eligibility
+  const eligibility = evaluateEligibility(deployment, challenge);
+  if (!eligibility.fullyEligible) return challenge;
+
+  // Increment, capped at target_count
+  const nextProgress = Math.min(challenge.targetCount, challenge.progress + 1);
+  return { ...challenge, progress: nextProgress };
+}
+
+/**
+ * Apply a kill increment (or revert) to a challenge.
+ *
+ * - delta +1: increments progress if objective is 'get_kills' and deployment is eligible
+ * - delta -1: decrements progress if objective is 'get_kills' and deployment is eligible
+ *   (kill-revert scenario)
+ *
+ * Progress is capped at target_count (upper bound) and 0 (lower bound).
+ * Kill-revert (delta -1) is ONLY allowed for 'get_kills' objective.
+ * Returns a new Challenge object (immutable update).
+ *
+ * Requirements: 4.4, 4.5, 4.6
+ */
+export function applyKillIncrement(
+  deployment: DeploymentRecord,
+  challenge: Challenge,
+  delta: 1 | -1
+): Challenge {
+  // Only applies to get_kills objective
+  if (challenge.objective !== 'get_kills') return challenge;
+
+  // Check eligibility
+  const eligibility = evaluateEligibility(deployment, challenge);
+  if (!eligibility.fullyEligible) return challenge;
+
+  // Apply delta, clamped to [0, target_count]
+  const nextProgress = Math.max(0, Math.min(challenge.targetCount, challenge.progress + delta));
+  return { ...challenge, progress: nextProgress };
+}
+
+// --- Completion Detection & Effective XP ---
+
+/**
+ * Determine whether a challenge is completed.
+ *
+ * A challenge is completed when its progress has reached (or exceeded) its target count.
+ *
+ * Requirements: 5.1
+ */
+export function isCompleted(challenge: Challenge): boolean {
+  return challenge.progress >= challenge.targetCount;
+}
+
+/**
+ * Compute the effective XP reward for a challenge at completion time.
+ *
+ * - If the challenge has a valid Administrative_Exception (both xpOverride and
+ *   xpOverrideReason are non-null), the effective reward is xpOverride.
+ * - Otherwise, the effective reward is the canonical value computed from the
+ *   Canonical_XP_Formula: target_count × multiplier[slot].
+ *
+ * Requirements: 5.5, 16.6
+ */
+export function computeEffectiveXpReward(challenge: Challenge): number {
+  if (challenge.xpOverride !== null && challenge.xpOverrideReason !== null) {
+    return challenge.xpOverride;
+  }
+  return canonicalXpReward(challenge.slot, challenge.targetCount);
 }
 
 // --- Exported for testing ---

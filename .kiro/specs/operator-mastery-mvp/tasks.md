@@ -27,7 +27,7 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - **Property 12: Mastery_Tier threshold table** — computeTier returns correct tier for any non-negative integer points
     - **Validates: Requirements 7.4, 16.1, 16.2, 16.5, 16.6, 16.7, 16.10**
 
-- [ ] 2. Implement Challenge_Engine (pure logic)
+- [x] 2. Implement Challenge_Engine (pure logic)
   - [x] 2.1 Implement challenge generation functions
     - Create `app/lib/mastery/challenge-engine.ts` with `generateDaily`, `generateWeekly`, `generateOperatorMissions` functions
     - Implement constraint-relaxation retry logic (up to 5 attempts, drop restriction first, then role)
@@ -40,25 +40,25 @@ This plan implements the Operator Mastery MVP as three coordinated layers — Ch
     - Return an `Eligibility` object with `operatorScopeOk`, `roleOk`, `restrictionOk`, and `fullyEligible` fields
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
 
-  - [ ] 2.3 Implement challenge progress application
+  - [x] 2.3 Implement challenge progress application
     - Add `applyDeploymentProgress`, `applyMatchResultProgress`, `applyKillIncrement` pure functions
     - Enforce progress capped at target_count, never below 0
     - Handle kill-revert (delta -1) for get_kills objective only
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-  - [ ] 2.4 Implement challenge completion detection and effective XP computation
+  - [x] 2.4 Implement challenge completion detection and effective XP computation
     - Add `isCompleted(challenge)` and `computeEffectiveXpReward(challenge)` functions
     - `computeEffectiveXpReward` uses xp_override when valid Administrative_Exception, otherwise canonical value
     - _Requirements: 5.1, 5.5, 16.6_
 
-  - [ ] 2.5 Write property tests for challenge generation (Properties 2, 3, 4, 5)
+  - [x] 2.5 Write property tests for challenge generation (Properties 2, 3, 4, 5)
     - **Property 2: Generated Challenge well-formedness** — slot, target_count ranges, objective, operator_scope, mastery_point_reward, null overrides
     - **Property 3: Random pool sizing and operator validity** — pool size [1,5] for random_pool, 1 for specific_operator, empty for any
     - **Property 4: Gadget restriction respects every operator in the pool** — restriction.value in gadgets of all pool operators
     - **Property 5: Constraint-relaxation retry** — at most 5 retries, produces valid challenge or error
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.6, 1.7, 1.8**
 
-  - [ ] 2.6 Write property tests for eligibility and progress (Properties 6, 7)
+  - [x] 2.6 Write property tests for eligibility and progress (Properties 6, 7)
     - **Property 6: Eligibility classification correctness** — fullyEligible iff all three sub-checks pass
     - **Property 7: Challenge_Progress evolution** — progress stays in [0, target_count], increments/decrements correctly per event type
     - **Validates: Requirements 3.1–3.8, 4.1–4.6**
