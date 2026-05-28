@@ -32,6 +32,8 @@ import { TacticalEntry, WelcomeModal, FirstActionTooltip } from './components/on
 import { useOnboardingContext } from './components/onboarding/OnboardingProvider';
 import { AccountIndicator, SetCallsignModal, shouldPromptCallsign } from './components/account';
 import { useData } from './context/DataContext';
+import { useMastery } from './context/MasteryContext';
+import { ChallengeBanner, MatchResultControl, MasteryDashboard } from './components/mastery';
 import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
 import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
@@ -51,6 +53,7 @@ function HomeContent() {
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
   const { addDeployment, deleteDeployment, clearDeployments, updateRankedStats: syncRankedStats, resetRankedSeason } = useData();
+  const { onDeploymentAccepted, onKillIncremented } = useMastery();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -94,7 +97,7 @@ function HomeContent() {
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
+  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content' | 'mastery'>('roulette');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
@@ -254,7 +257,7 @@ function HomeContent() {
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
 
     // Persist deployment to cloud
-    addDeployment({
+    const deploymentRecord = {
       id: deploymentId,
       operatorId: pendingOperator.id,
       operatorName: pendingOperator.name,
@@ -265,7 +268,11 @@ function HomeContent() {
       targetKills: pendingTargetKills,
       role: pendingRole || undefined,
       deployedAt: new Date().toISOString(),
-    });
+    };
+    addDeployment(deploymentRecord);
+
+    // Notify mastery system of the new deployment
+    onDeploymentAccepted(deploymentRecord);
 
     // Play reveal sound
     playReveal();
@@ -469,6 +476,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         ...prev,
         [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
       }));
+
+      // Notify mastery system of kill revert
+      const currentDeploymentId = history[0]?.deploymentId;
+      if (currentDeploymentId) {
+        onKillIncremented(currentDeploymentId, currentOperator.id, -1);
+      }
     }
   };
 
@@ -634,6 +647,16 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               >
                 Content
               </button>
+              <button
+                onClick={() => setViewMode('mastery')}
+                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                  viewMode === 'mastery'
+                    ? 'bg-yellow-500 text-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Mastery
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -688,8 +711,19 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                 embedded
               />
             </div>
+          ) : viewMode === 'mastery' ? (
+            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
+              <MasteryDashboard />
+            </div>
           ) : (
             <>
+          {/* Challenge Banners */}
+          <div className="flex flex-col gap-2 shrink-0 mb-3">
+            <ChallengeBanner slot="daily" />
+            <ChallengeBanner slot="weekly" />
+            <ChallengeBanner slot="mission" />
+          </div>
+
           {/* Stats Row */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <StatCounter
@@ -718,6 +752,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                       [currentOperator.id]: newOpKills
                     };
                   });
+
+                  // Notify mastery system of kill increment
+                  const currentDeploymentId = history[0]?.deploymentId;
+                  if (currentDeploymentId) {
+                    onKillIncremented(currentDeploymentId, currentOperator.id, 1);
+                  }
                 }
               }}
               onDecrement={handleKillDecrement}
@@ -815,6 +855,15 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                   Next Deployment →
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Match Result Control — shown when operator is deployed */}
+          {currentOperator && history[0]?.deploymentId && (
+            <div className="shrink-0 mt-3">
+              <MatchResultControl
+                deploymentId={history[0].deploymentId}
+              />
             </div>
           )}
 

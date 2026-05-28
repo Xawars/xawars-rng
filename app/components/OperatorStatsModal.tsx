@@ -31,7 +31,7 @@ function ObjectiveBar({ kills, target, progress }: { kills: number; target: numb
       </div>
       <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-yellow-500 to-green-500 transition-all duration-300"
+          className="h-full bg-linear-to-r from-yellow-500 to-green-500 transition-all duration-300"
           style={{ width: `${Math.min(progress, 100)}%` }}
         />
       </div>
@@ -80,7 +80,7 @@ function OperatorRow({
       onClick={() => lastItem && onSelect(lastItem)}
       className="flex items-center gap-3 bg-zinc-800/50 border border-zinc-700/50 p-3 rounded-lg hover:border-yellow-500/50 hover:bg-zinc-800 cursor-pointer transition-all duration-150 group"
     >
-      <div className={`h-10 w-10 flex-shrink-0 rounded-md flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/30 text-blue-400'}`}>
+      <div className={`h-10 w-10 shrink-0 rounded-md flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/30 text-orange-400' : 'bg-blue-900/30 text-blue-400'}`}>
         <OperatorIcon id={stat.id} className="w-full h-full drop-shadow-sm">
           {stat.name[0]}
         </OperatorIcon>
@@ -142,7 +142,7 @@ function ExportableCard({
       className="w-[400px] p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl pointer-events-none"
     >
       <div className="flex items-start gap-4">
-        <div className={`h-20 w-20 flex-shrink-0 rounded-lg flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>
+        <div className={`h-20 w-20 shrink-0 rounded-lg flex items-center justify-center ${stat.side === 'attacker' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>
           <OperatorIcon id={stat.id} className="w-full h-full drop-shadow-lg">
             {stat.name[0]}
           </OperatorIcon>
@@ -208,7 +208,7 @@ function ExportableCard({
         </div>
         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
           <div
-            className={`h-full ${targetComplete ? 'bg-green-500' : 'bg-gradient-to-r from-yellow-500 to-green-500'}`}
+            className={`h-full ${targetComplete ? 'bg-green-500' : 'bg-linear-to-r from-yellow-500 to-green-500'}`}
             style={{ width: `${Math.min(stat.objectiveProgress, 100)}%` }}
           />
         </div>
@@ -288,7 +288,7 @@ export function OperatorStatsModal({
         ref={modalRef}
         className="relative bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300"
       >
-        <div className="p-4 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+        <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-black text-yellow-500 uppercase tracking-wider">Select Operator</h2>
             <span className="text-xs text-zinc-500 font-medium">{history.length} deployments</span>
@@ -298,7 +298,7 @@ export function OperatorStatsModal({
           </Button>
         </div>
 
-        <div className="px-4 py-2 border-b border-white/5 flex-shrink-0">
+        <div className="px-4 py-2 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <SortButton active={sortMode === 'recent'} onClick={() => setSortMode('recent')}>
               <Clock className="w-3 h-3" /> Recent
@@ -353,7 +353,7 @@ export function OperatorStatsModal({
           })}
         </div>
 
-        <div className="px-4 py-3 border-t border-white/5 text-center flex-shrink-0">
+        <div className="px-4 py-3 border-t border-white/5 text-center shrink-0">
           <p className="text-[10px] text-zinc-600">Click an operator to restore their deployment</p>
         </div>
       </div>
