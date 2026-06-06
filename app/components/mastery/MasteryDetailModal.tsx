@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, Crosshair, Skull, Target, Clock, TrendingUp } from 'lucide-react';
+import { X, Crosshair, Skull, Clock, TrendingUp, Zap, PieChart } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { OperatorIcon } from '../OperatorIcon';
 import type { Operator } from '../../data/types';
@@ -14,7 +14,8 @@ export interface MasteryOperatorData {
   deaths: number;
   kd: number | null;
   deployments: number;
-  objectivesCompleted: number;
+  avgKills: number | null;
+  pickRate: number;
   lastPlayed: string | null;
   xp: number;
   xpToNextTier: number;
@@ -69,7 +70,7 @@ export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
 
   if (!data) return null;
 
-  const { operator, tier, kills, deaths, kd, deployments, objectivesCompleted, lastPlayed, xp, xpToNextTier } = data;
+  const { operator, tier, kills, deaths, kd, deployments, avgKills, pickRate, lastPlayed, xp, xpToNextTier } = data;
   const progressPercent = xpToNextTier > 0 ? Math.min((xp / xpToNextTier) * 100, 100) : tier === 'elite' ? 100 : 0;
   const kdColor = kd !== null && kd >= 1 ? 'text-green-400' : 'text-red-400';
 
@@ -159,8 +160,9 @@ export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
           <StatCard icon={Crosshair} label="Kills" value={kills.toString()} color="text-green-400" />
           <StatCard icon={Skull} label="Deaths" value={deaths.toString()} color="text-red-400" />
           <StatCard icon={TrendingUp} label="K/D Ratio" value={kd !== null ? kd.toFixed(2) : '\u2014'} color={kd !== null ? kdColor : 'text-zinc-500'} />
-          <StatCard icon={Target} label="Objectives" value={objectivesCompleted.toString()} color="text-yellow-400" />
+          <StatCard icon={Zap} label="Avg Kills" value={avgKills !== null ? avgKills.toFixed(1) : '\u2014'} color="text-cyan-400" />
           <StatCard icon={Clock} label="Deployments" value={deployments.toString()} color="text-purple-400" />
+          <StatCard icon={PieChart} label="Pick Rate" value={pickRate > 0 ? `${pickRate.toFixed(1)}%` : '\u2014'} color="text-amber-400" />
           <StatCard
             icon={Clock}
             label="Last Played"

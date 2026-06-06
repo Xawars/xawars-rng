@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Info, Search } from 'lucide-react';
+import { Info, Search, Swords, Shield } from 'lucide-react';
 import { MasteryTiersModal } from './MasteryTiersModal';
 import { MasteryRow, MasteryTier } from './MasteryRow';
 import { MasteryDetailModal, MasteryOperatorData } from './MasteryDetailModal';
 import { operators } from '../../data/operators';
-import type { Operator } from '../../data/types';
+import type { Operator, Side } from '../../data/types';
 import type { HistoryItem } from '../HistoryList';
+
+type SideFilter = 'all' | Side;
 
 interface MasteryHeaderProps {
   history: HistoryItem[];
@@ -27,6 +29,7 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
   const [isTiersModalOpen, setIsTiersModalOpen] = useState(false);
   const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
   const [search, setSearch] = useState('');
+  const [sideFilter, setSideFilter] = useState<SideFilter>('all');
 
   // Build per-operator stats from history
   const operatorDataMap = useMemo(() => {
@@ -68,6 +71,10 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
   const filteredOperators = useMemo(() => {
     let filtered = [...operators];
 
+    if (sideFilter !== 'all') {
+      filtered = filtered.filter(op => op.side === sideFilter);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase().trim();
       filtered = filtered.filter(op => op.name.toLowerCase().includes(q));
@@ -83,7 +90,12 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
     });
 
     return filtered;
-  }, [search, operatorDataMap]);
+  }, [sideFilter, search, operatorDataMap]);
+
+  // Total deployments across all operators (for pick rate)
+  const totalDeployments = useMemo(() => {
+    return history.length;
+  }, [history]);
 
   // Detail modal data
   const selectedData: MasteryOperatorData | null = useMemo(() => {
@@ -95,6 +107,8 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
     const deployments = stats?.deployments ?? 0;
     const kd = deaths > 0 ? Math.round((kills / deaths) * 100) / 100 : (kills > 0 ? kills : null);
     const tier = computeTier(deployments, kd);
+    const avgKills = deployments > 0 ? Math.round((kills / deployments) * 10) / 10 : null;
+    const pickRate = totalDeployments > 0 ? (deployments / totalDeployments) * 100 : 0;
 
     const xpPerDeploy = 50;
     const xpPerKill = 10;
@@ -116,12 +130,13 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
       deaths,
       kd,
       deployments,
-      objectivesCompleted: Math.floor(deployments * 0.4),
+      avgKills,
+      pickRate,
       lastPlayed: stats?.lastPlayed ?? null,
       xp: xpInCurrentTier,
       xpToNextTier: xpToNext,
     };
-  }, [selectedOperator, operatorDataMap]);
+  }, [selectedOperator, operatorDataMap, totalDeployments]);
 
   const deployedCount = useMemo(() => {
     return operators.filter(op => (operatorDataMap.get(op.id)?.deployments ?? 0) > 0).length;
@@ -162,6 +177,40 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-7 pr-2 py-1.5 text-xs bg-zinc-800/80 border border-zinc-700/50 rounded-md text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500/50 transition-colors"
           />
+        </div>
+
+        {/* Side Filter Tabs */}
+        <div className="shrink-0 flex gap-1 mb-2">
+          <button
+            onClick={() => setSideFilter('all')}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border transition-all ${
+              sideFilter === 'all'
+                ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/50'
+                : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setSideFilter('attacker')}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border transition-all ${
+              sideFilter === 'attacker'
+                ? 'bg-orange-500/10 text-orange-500 border-orange-500/50'
+                : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600'
+            }`}
+          >
+            <Swords className="w-3 h-3" /> ATK
+          </button>
+          <button
+            onClick={() => setSideFilter('defender')}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border transition-all ${
+              sideFilter === 'defender'
+                ? 'bg-blue-500/10 text-blue-500 border-blue-500/50'
+                : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600'
+            }`}
+          >
+            <Shield className="w-3 h-3" /> DEF
+          </button>
         </div>
 
         {/* Operator List */}
