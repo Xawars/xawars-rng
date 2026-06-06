@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
-import { X, Crosshair, Skull, Clock, TrendingUp, Zap, PieChart } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Crosshair, Skull, Clock, TrendingUp, Zap, PieChart, Swords } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { OperatorIcon } from '../OperatorIcon';
+import { RivalryView } from '../rivalry/RivalryView';
 import type { Operator } from '../../data/types';
 import type { MasteryTier } from './MasteryRow';
 
@@ -59,6 +60,8 @@ const tierProgressColors: Record<MasteryTier, string> = {
 };
 
 export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
+  const [isRivalryOpen, setIsRivalryOpen] = useState(false);
+
   useEffect(() => {
     if (!data) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -172,12 +175,27 @@ export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/5 bg-zinc-900/50">
-          <p className="text-[9px] text-zinc-600 text-center">
+        <div className="px-5 py-3 border-t border-white/5 bg-zinc-900/50 flex items-center justify-between">
+          <p className="text-[9px] text-zinc-600">
             Deploy this operator more to increase mastery
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Swords}
+            onClick={() => setIsRivalryOpen(true)}
+          >
+            Compare
+          </Button>
         </div>
       </div>
+
+      {/* Rivalry View Modal */}
+      <RivalryView
+        isOpen={isRivalryOpen}
+        onClose={() => setIsRivalryOpen(false)}
+        prefilledOperator={data.operator}
+      />
     </div>
   );
 }
