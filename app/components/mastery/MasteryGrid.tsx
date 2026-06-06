@@ -39,14 +39,13 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
       deployments: number;
       kills: number;
       deaths: number;
-      objectivesCompleted: number;
       lastPlayed: string | null;
     }>();
 
     for (const item of history) {
       const id = item.operator.id;
       if (!map.has(id)) {
-        map.set(id, { deployments: 0, kills: 0, deaths: 0, objectivesCompleted: 0, lastPlayed: null });
+        map.set(id, { deployments: 0, kills: 0, deaths: 0, lastPlayed: null });
       }
       const entry = map.get(id)!;
       entry.deployments += 1;
@@ -59,7 +58,7 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
     // Merge kill/death data
     for (const [id, kills] of Object.entries(operatorKills)) {
       if (!map.has(id)) {
-        map.set(id, { deployments: 0, kills: 0, deaths: 0, objectivesCompleted: 0, lastPlayed: null });
+        map.set(id, { deployments: 0, kills: 0, deaths: 0, lastPlayed: null });
       }
       map.get(id)!.kills = kills;
     }
@@ -99,6 +98,11 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
     return filtered;
   }, [sideFilter, search, operatorDataMap]);
 
+  // Total deployments across all operators (for pick rate)
+  const totalDeployments = useMemo(() => {
+    return history.length;
+  }, [history]);
+
   // Build modal data for selected operator
   const selectedData: MasteryOperatorData | null = useMemo(() => {
     if (!selectedOperator) return null;
@@ -109,6 +113,8 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
     const deployments = stats?.deployments ?? 0;
     const kd = deaths > 0 ? Math.round((kills / deaths) * 100) / 100 : (kills > 0 ? kills : null);
     const tier = computeTier(deployments, kd);
+    const avgKills = deployments > 0 ? Math.round((kills / deployments) * 10) / 10 : null;
+    const pickRate = totalDeployments > 0 ? (deployments / totalDeployments) * 100 : 0;
 
     const xpPerDeploy = 50;
     const xpPerKill = 10;
@@ -130,12 +136,13 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
       deaths,
       kd,
       deployments,
-      objectivesCompleted: Math.floor(deployments * 0.4),
+      avgKills,
+      pickRate,
       lastPlayed: stats?.lastPlayed ?? null,
       xp: xpInCurrentTier,
       xpToNextTier: xpToNext,
     };
-  }, [selectedOperator, operatorDataMap]);
+  }, [selectedOperator, operatorDataMap, totalDeployments]);
 
   const playedCount = useMemo(() => {
     return operators.filter(op => (operatorDataMap.get(op.id)?.deployments ?? 0) > 0).length;
