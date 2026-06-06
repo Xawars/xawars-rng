@@ -34,7 +34,6 @@ auth.users (managed by Supabase)
     ├── 1:N ──► operator_stats (unique per operator)
     ├── 1:1 ──► gamification
     ├── 1:N ──► achievements (unique per achievement)
-    ├── 1:N ──► ranked_stats (unique per platform)
     └── 1:N ──► content_ideas
 ```
 
@@ -141,26 +140,6 @@ Records which achievements a user has unlocked. One row per user + achievement c
 **Unique constraint:** `(user_id, achievement_id)` — prevents duplicate unlocks.
 
 **RLS Policies:** Users can only access their own achievements.
-
----
-
-### `ranked_stats`
-
-Stores ranked mode statistics per platform. The `data` column holds the full `RankedStats` JSON structure (wins, losses, rank progress, MMR, etc.).
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid (PK) | Auto-generated unique ID |
-| `user_id` | uuid (FK) | References `auth.users(id)` |
-| `platform` | text | Platform identifier (PC, PlayStation, Xbox) |
-| `data` | jsonb | Full ranked stats object |
-| `updated_at` | timestamptz | Last modification timestamp |
-
-**Unique constraint:** `(user_id, platform)` — one stats row per platform per user.
-
-**RLS Policies:** Users can only access their own ranked stats.
-
----
 
 ### `content_ideas`
 

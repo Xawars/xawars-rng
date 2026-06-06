@@ -1,4 +1,5 @@
 import { Operator, Side, Loadout, MatchType, Platform } from './types';
+import { bestLoadouts } from './best-loadouts';
 
 // FULL ROSTER (Pathfinder - Year 10)
 export const operators: Operator[] = [
@@ -738,6 +739,13 @@ export function getRandomOperator(side?: Side): Operator {
 }
 
 export function generateLoadout(op: Operator): Loadout {
+  // Use the best meta loadout if available for this operator
+  const best = bestLoadouts[op.id];
+  if (best) {
+    return { ...best };
+  }
+
+  // Fallback to random selection if no best loadout is defined
   const primary = op.primaries[Math.floor(Math.random() * op.primaries.length)];
   const secondary = op.secondaries[Math.floor(Math.random() * op.secondaries.length)];
   const gadget = op.gadgets[Math.floor(Math.random() * op.gadgets.length)];

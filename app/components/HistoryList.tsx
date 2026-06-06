@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronRight } from 'lucide-react';
 import { Operator, Loadout, Platform } from '../data/types';
 import { OperatorIcon } from './OperatorIcon';
 
@@ -17,13 +17,14 @@ export interface HistoryItem {
   surrendered?: boolean;
 }
 
-type DeploymentStatus = 'completed' | 'in-progress' | 'pending' | 'surrendered';
+type DeploymentStatus = 'completed' | 'in-progress' | 'surrendered';
 
 interface HistoryListProps {
   history: HistoryItem[];
   operatorKills?: Record<string, number>;
   currentOperatorId?: string | null;
   onItemClick?: (item: HistoryItem) => void;
+  onSelectItem?: (item: HistoryItem) => void;
   onDeleteItem?: (item: HistoryItem) => void;
 }
 
@@ -31,7 +32,7 @@ function getStatus(
   item: HistoryItem,
   operatorKills: Record<string, number>,
   currentOperatorId: string | null
-): DeploymentStatus {
+): DeploymentStatus | null {
   const kills = operatorKills[item.operator.id] || 0;
   const target = item.targetKills || 0;
 
@@ -44,8 +45,8 @@ function getStatus(
   // If this is the currently active operator, it's in progress
   if (currentOperatorId === item.operator.id) return 'in-progress';
 
-  // Otherwise it's a past deployment (pending = was never completed)
-  return 'pending';
+  // All other deployments are active/selectable — no badge needed
+  return null;
 }
 
 const STATUS_CONFIG = {
@@ -67,15 +68,9 @@ const STATUS_CONFIG = {
     border: 'border-red-500/30',
     text: 'text-red-400',
   },
-  'pending': {
-    label: 'Past',
-    bg: 'bg-zinc-500/10',
-    border: 'border-zinc-600/40',
-    text: 'text-zinc-500',
-  },
 } as const;
 
-export function HistoryList({ history, operatorKills = {}, currentOperatorId = null, onItemClick, onDeleteItem }: HistoryListProps) {
+export function HistoryList({ history, operatorKills = {}, currentOperatorId = null, onItemClick, onSelectItem, onDeleteItem }: HistoryListProps) {
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   if (history.length === 0) return null;
@@ -87,7 +82,7 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
       <div className="flex flex-col gap-1.5">
         {history.map((item) => {
           const status = getStatus(item, operatorKills, currentOperatorId);
-          const cfg = STATUS_CONFIG[status];
+          const cfg = status ? STATUS_CONFIG[status] : null;
           const isConfirming = confirmingId === item.id;
 
           return (
@@ -109,24 +104,53 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
                   <h4 className="text-sm font-bold text-zinc-200 uppercase truncate">
                     {item.operator.name}
                   </h4>
-                  {/* Status badge */}
-                  <span className={`shrink-0 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
-                    {cfg.label}
-                  </span>
+                  {/* Status badge — only shown for completed, active, or surrendered */}
+                  {cfg && (
+                    <span className={`shrink-0 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+                      {cfg.label}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-[10px] text-zinc-500 truncate">{item.loadout.primary}</span>
                   {item.matchType && (
                     <span className="text-[9px] text-zinc-600">• {item.matchType}</span>
                   )}
+                  {item.targetKills && item.targetKills > 0 && (
+                    <>
+                      <span className="text-[9px] text-zinc-600">•</span>
+                      <span className={`text-[9px] font-bold ${
+                        (operatorKills[item.operator.id] || 0) >= item.targetKills
+                          ? 'text-green-400'
+                          : 'text-zinc-400'
+                      }`}>
+                        {operatorKills[item.operator.id] || 0}/{item.targetKills}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Side indicator + Delete */}
+              {/* Side indicator + Actions */}
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`text-[9px] font-bold uppercase tracking-wider ${item.operator.side === 'attacker' ? 'text-orange-500/60' : 'text-blue-500/60'}`}>
                   {item.operator.side === 'attacker' ? 'ATK' : 'DEF'}
                 </span>
+
+                {/* Select button — only for non-completed deployments */}
+                {status !== 'completed' && onSelectItem && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectItem(item);
+                    }}
+                    className="p-1.5 rounded-md bg-zinc-800 border border-zinc-700/50 text-zinc-400 hover:text-yellow-500 hover:border-yellow-500/50 hover:bg-yellow-500/10 transition-colors"
+                    aria-label={`Switch to ${item.operator.name}`}
+                    title="Switch to this deployment"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                )}
 
                 {onDeleteItem && (
                   isConfirming ? (

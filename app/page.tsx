@@ -32,13 +32,11 @@ import { TacticalEntry, WelcomeModal, FirstActionTooltip } from './components/on
 import { useOnboardingContext } from './components/onboarding/OnboardingProvider';
 import { AccountIndicator, SetCallsignModal, shouldPromptCallsign } from './components/account';
 import { useData } from './context/DataContext';
-import { useMastery } from './context/MasteryContext';
-import { ChallengeBanner, MatchResultControl, MasteryDashboard } from './components/mastery';
 import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
 import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
-import { Operator, Loadout, MatchType, Platform, RankedStats, RankTier, RankDivision, Side } from './data/types';
-import { RankedDisplay, DEFAULT_RANKED_STATS, TIER_ORDER, DIVISION_RP_MAX, WIN_RP, LOSS_RP } from './components/RankedDisplay';
+import { Operator, Loadout, MatchType, Platform, Side } from './data/types';
+import { MasteryHeader } from './components/mastery';
 
 export default function Home() {
   return (
@@ -52,8 +50,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
-  const { addDeployment, deleteDeployment, clearDeployments, updateRankedStats: syncRankedStats, resetRankedSeason } = useData();
-  const { onDeploymentAccepted, onKillIncremented } = useMastery();
+  const { addDeployment, deleteDeployment, clearDeployments } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -68,8 +65,6 @@ function HomeContent() {
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
-  const [rankedStats, setRankedStats] = usePersistedState<RankedStats>('xawars_ranked_stats', DEFAULT_RANKED_STATS);
-  const [rankedPlatform, setRankedPlatform] = usePersistedState<'PC' | 'Console'>('xawars_ranked_platform', 'PC');
 
   // AI Content Generator - persisted state
   const [apiKey, setApiKey] = usePersistedState<string>('xawars_openai_api_key', '');
@@ -97,7 +92,7 @@ function HomeContent() {
   const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content' | 'mastery'>('roulette');
+  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
@@ -254,7 +249,7 @@ function HomeContent() {
       role: pendingRole,
       deploymentId,
     };
-    setHistory(prev => [newHistoryItem, ...prev].slice(0, 5));
+    setHistory(prev => [newHistoryItem, ...prev].slice(0, 15));
 
     // Persist deployment to cloud
     const deploymentRecord = {
@@ -270,9 +265,6 @@ function HomeContent() {
       deployedAt: new Date().toISOString(),
     };
     addDeployment(deploymentRecord);
-
-    // Notify mastery system of the new deployment
-    onDeploymentAccepted(deploymentRecord);
 
     // Play reveal sound
     playReveal();
@@ -353,91 +345,6 @@ function HomeContent() {
     setTargetComplete(false);
   }
 
-  // Shared progression helper used by win/loss and manual RP add
-  const applyRPDelta = (platform: 'PC' | 'Console', delta: number) => {
-    setRankedStats(prev => {
-      const { tier, division, rp, peakTier, peakDivision } = prev[platform];
-
-      let newRp       = Math.max(0, rp + delta);
-      let newDivision: RankDivision = division;
-      let newTier:     RankTier     = tier;
-      let newPeakTier: RankTier     = peakTier;
-      let newPeakDivision: RankDivision = peakDivision;
-
-      if (newTier === 'Champion') {
-        newRp = Math.min(newRp, DIVISION_RP_MAX);
-      } else {
-        // Handle multiple division jumps (e.g. manual +200 RP)
-        while (newRp >= DIVISION_RP_MAX) {
-          newRp -= DIVISION_RP_MAX;
-          const nextDiv = (newDivision + 1) as RankDivision;
-          if (nextDiv > 5) {
-            newDivision = 1;
-            const idx = TIER_ORDER.indexOf(newTier);
-            if (idx < TIER_ORDER.length - 1) {
-              newTier = TIER_ORDER[idx + 1];
-            }
-            if (newTier === 'Champion') {
-              newRp = Math.min(newRp, DIVISION_RP_MAX);
-              break;
-            }
-          } else {
-            newDivision = nextDiv;
-          }
-        }
-      }
-
-      const isHigher =
-        TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(newPeakTier) ||
-        (newTier === newPeakTier && newDivision > newPeakDivision);
-      if (isHigher) {
-        newPeakTier     = newTier;
-        newPeakDivision = newDivision;
-      }
-
-      return {
-        ...prev,
-        [platform]: { tier: newTier, division: newDivision, rp: newRp, peakTier: newPeakTier, peakDivision: newPeakDivision },
-      };
-    });
-  };
-
-  const handleRPRankChange = (result: 'win' | 'loss') => {
-    applyRPDelta(rankedPlatform, result === 'win' ? WIN_RP : -LOSS_RP);
-  };
-
-  const handleRankedReset = () => {
-    if (confirm('Reset ranked season for ' + rankedPlatform + '? This will delete the record from the database. Peak rank will be kept.')) {
-      resetRankedSeason(rankedPlatform);
-    }
-  };
-
-  const handleSetRank = (platform: 'PC' | 'Console', tier: RankTier, division: RankDivision, rp: number) => {
-    const clamped = Math.max(0, Math.min(DIVISION_RP_MAX, rp));
-    setRankedStats(prev => {
-      const { peakTier, peakDivision } = prev[platform];
-      const isHigher =
-        TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(peakTier) ||
-        (tier === peakTier && division > peakDivision);
-      return {
-        ...prev,
-        [platform]: {
-          tier,
-          division,
-          rp: clamped,
-          peakTier:     isHigher ? tier     : peakTier,
-          peakDivision: isHigher ? division  : peakDivision,
-        },
-      };
-    });
-    // Sync to Supabase
-    syncRankedStats(platform, { tier, division, rp: clamped });
-  };
-
-  const handleAddRP = (platform: 'PC' | 'Console', delta: number) => {
-    applyRPDelta(platform, delta);
-  };
-
   const restoreFromHistory = (item: HistoryItem) => {
     const opId = item.operator.id;
     setCurrentOperator(item.operator);
@@ -478,10 +385,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
       }));
 
       // Notify mastery system of kill revert
-      const currentDeploymentId = history[0]?.deploymentId;
-      if (currentDeploymentId) {
-        onKillIncremented(currentDeploymentId, currentOperator.id, -1);
-      }
     }
   };
 
@@ -647,16 +550,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               >
                 Content
               </button>
-              <button
-                onClick={() => setViewMode('mastery')}
-                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                  viewMode === 'mastery'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Mastery
-              </button>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -675,19 +568,17 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         {/* Content area — fills remaining height */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,560px)_1fr] gap-4 lg:gap-6 pt-4">
 
-          {/* Left Column - Ranked Display (hidden on small screens) */}
-          <div className="hidden lg:flex justify-end overflow-y-auto scrollbar-auto-hide pr-2">
-            {!isStreamerMode && (
-              <RankedDisplay
-              rankedStats={rankedStats}
-              selectedPlatform={rankedPlatform}
-              onPlatformChange={setRankedPlatform}
-              onReset={handleRankedReset}
-              onSetRank={handleSetRank}
-              onAddRP={handleAddRP}
-            />
+          {/* Left Column - Mastery Header — only in roulette mode */}
+          {viewMode === 'roulette' && (
+            <div className="hidden lg:flex flex-col overflow-y-auto scrollbar-auto-hide pr-2 pt-1">
+              <MasteryHeader
+                history={history}
+                operatorKills={operatorKills}
+                operatorDeaths={operatorDeaths}
+              />
+            </div>
           )}
-        </div>
+          {viewMode !== 'roulette' && <div className="hidden lg:block" />}
 
         {/* Center Column - Main Content */}
         <div className="max-w-[560px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-y-auto overflow-x-hidden scrollbar-auto-hide">
@@ -711,19 +602,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                 embedded
               />
             </div>
-          ) : viewMode === 'mastery' ? (
-            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
-              <MasteryDashboard />
-            </div>
           ) : (
             <>
-          {/* Challenge Banners */}
-          <div className="flex flex-col gap-2 shrink-0 mb-3">
-            <ChallengeBanner slot="daily" />
-            <ChallengeBanner slot="weekly" />
-            <ChallengeBanner slot="mission" />
-          </div>
-
           {/* Stats Row */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <StatCounter
@@ -754,10 +634,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                   });
 
                   // Notify mastery system of kill increment
-                  const currentDeploymentId = history[0]?.deploymentId;
-                  if (currentDeploymentId) {
-                    onKillIncremented(currentDeploymentId, currentOperator.id, 1);
-                  }
                 }
               }}
               onDecrement={handleKillDecrement}
@@ -858,15 +734,6 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             </div>
           )}
 
-          {/* Match Result Control — shown when operator is deployed */}
-          {currentOperator && history[0]?.deploymentId && (
-            <div className="shrink-0 mt-3">
-              <MatchResultControl
-                deploymentId={history[0].deploymentId}
-              />
-            </div>
-          )}
-
           {/* Action Buttons — always at bottom */}
           <div className="shrink-0 mt-3 pb-4 flex flex-col gap-2">
             {/* Primary actions row */}
@@ -938,8 +805,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
           </div>
 
-        {/* Right Column - History - Hide in streamer mode */}
-        {!isStreamerMode && (
+        {/* Right Column - History - Hide in streamer mode and non-roulette tabs */}
+        {!isStreamerMode && viewMode === 'roulette' && (
           <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-4 border-gradient-fade">
             <Button
               variant="outline"
@@ -955,6 +822,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               operatorKills={operatorKills}
               currentOperatorId={currentOperator?.id || null}
               onItemClick={setSelectedHistoryItem}
+              onSelectItem={restoreFromHistory}
               onDeleteItem={(item) => {
                 setHistory(prev => prev.filter(h => h.id !== item.id));
                 if (item.deploymentId) {

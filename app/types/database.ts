@@ -1,4 +1,4 @@
-import type { Loadout, MatchType, Platform, RankProgress, RankedStats } from '../data/types';
+import type { Loadout, MatchType, Platform } from '../data/types';
 
 /**
  * A record of a single operator deployment from the roulette.
@@ -50,6 +50,4 @@ export interface AchievementRecord {
   unlockedAt: string;
 }
 
-// Re-export RankedStats and RankProgress from the shared data types
-// so consumers can import all database-related types from one place.
-export type { RankedStats, RankProgress, Loadout, MatchType, Platform };
+export type { Loadout, MatchType, Platform };
