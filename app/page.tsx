@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dices, RotateCcw, Volume2, VolumeX, UserRoundSearch, Flag } from 'lucide-react';
+import { Dices, RotateCcw, Volume2, VolumeX, UserRoundSearch, Flag, Swords } from 'lucide-react';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useSoundContext } from './context/SoundContext';
@@ -37,6 +37,7 @@ import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
 import { Operator, Loadout, MatchType, Platform, Side } from './data/types';
 import { MasteryHeader } from './components/mastery';
+import { RivalryView } from './components/rivalry/RivalryView';
 
 export default function Home() {
   return (
@@ -94,6 +95,7 @@ function HomeContent() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isRivalryOpen, setIsRivalryOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
@@ -561,6 +563,9 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
                 Reset Run
               </Button>
             )}
+            <Button variant="ghost" size="sm" onClick={() => setIsRivalryOpen(true)} icon={Swords}>
+              <span className="sr-only">Rivalry</span>
+            </Button>
             <AccountIndicator onOpenStats={() => setIsStatsModalOpen(true)} />
           </div>
         </header>
@@ -863,6 +868,12 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             onClose={() => setIsStatsModalOpen(false)}
           />
         )}
+
+        {/* Rivalry Comparison Modal */}
+        <RivalryView
+          isOpen={isRivalryOpen}
+          onClose={() => setIsRivalryOpen(false)}
+        />
 
         </div>
       </div>
