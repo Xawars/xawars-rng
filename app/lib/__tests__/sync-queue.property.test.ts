@@ -88,7 +88,6 @@ describe('Feature: auth-persistence-gamification, Property 13: Sync Queue Operat
 
   // Arbitrary for generating table names
   const tableNameArb = fc.constantFrom(
-    'ranked_stats',
     'deployments',
     'operator_stats',
     'content_ideas',

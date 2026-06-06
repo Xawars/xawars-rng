@@ -51,7 +51,6 @@ Run migrations against the PROD project's SQL Editor. If using the `migrations/`
 
 - `profiles`
 - `deployments`
-- `ranked_stats`
 - `operator_stats`
 - `gamification`
 - `achievements`
@@ -61,7 +60,6 @@ Run migrations against the PROD project's SQL Editor. If using the `migrations/`
 ```sql
 -- Enable RLS on all tables
 ALTER TABLE public.deployments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ranked_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.operator_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -71,10 +69,6 @@ ON public.deployments FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can read their own deployments"
 ON public.deployments FOR SELECT USING (auth.uid() = user_id);
-
--- Ranked Stats
-CREATE POLICY "Users can manage own ranked stats"
-ON public.ranked_stats FOR ALL USING (auth.uid() = user_id);
 
 -- Operator Stats
 CREATE POLICY "Users can manage own operator stats"

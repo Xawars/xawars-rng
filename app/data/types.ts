@@ -29,20 +29,3 @@ export interface Deployment {
   targetKills: number;
   role?: string;
 }
-
-export type RankTier = 'Copper' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Emerald' | 'Diamond' | 'Champion';
-
-export type RankDivision = 1 | 2 | 3 | 4 | 5;
-
-export interface RankProgress {
-  tier: RankTier;
-  division: RankDivision;
-  rp: number;
-  peakTier: RankTier;
-  peakDivision: RankDivision;
-}
-
-export interface RankedStats {
-  PC: RankProgress;
-  Console: RankProgress;
-}

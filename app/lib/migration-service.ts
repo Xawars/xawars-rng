@@ -5,7 +5,6 @@
  * to Supabase cloud storage for authenticated users.
  *
  * localStorage keys handled:
- * - xawars_ranked_stats: RankedStats (PC/Console rank progression)
  * - xawars_history: HistoryItem[] (deployment history)
  * - xawars_operatorKills: Record<string, number> (per-operator kills)
  * - xawars_operatorDeaths: Record<string, number> (per-operator deaths)
@@ -16,14 +15,12 @@
 
 import { supabase } from './supabase';
 import { serializeContentIdea } from './content-ideas';
-import type { RankedStats } from '../data/types';
 import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
 
 /**
  * Known localStorage keys that contain migratable app data.
  */
 export const MIGRATABLE_KEYS = [
-  'xawars_ranked_stats',
   'xawars_history',
   'xawars_operatorKills',
   'xawars_operatorDeaths',
@@ -77,46 +74,6 @@ function safeParseLocalStorage<T>(key: string): T | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Migrates ranked stats to Supabase.
- */
-async function migrateRankedStats(userId: string): Promise<{ success: boolean; error?: string }> {
-  const stats = safeParseLocalStorage<RankedStats>('xawars_ranked_stats');
-  if (!stats || (!stats.PC && !stats.Console)) {
-    return { success: true }; // Nothing to migrate
-  }
-
-  const rows: Array<Record<string, unknown>> = [];
-
-  for (const platform of ['PC', 'Console'] as const) {
-    const platformStats = stats[platform];
-    if (platformStats) {
-      rows.push({
-        user_id: userId,
-        platform,
-        tier: platformStats.tier,
-        division: platformStats.division,
-        rp: platformStats.rp,
-        peak_tier: platformStats.peakTier,
-        peak_division: platformStats.peakDivision,
-        updated_at: new Date().toISOString(),
-      });
-    }
-  }
-
-  if (rows.length === 0) return { success: true };
-
-  const { error } = await supabase.from('ranked_stats').upsert(rows, {
-    onConflict: 'user_id,platform',
-  });
-
-  if (error) {
-    return { success: false, error: `Ranked stats migration failed: ${error.message}` };
-  }
-
-  return { success: true };
 }
 
 /**
@@ -330,16 +287,6 @@ async function migrateContentIdeas(userId: string): Promise<{ success: boolean; 
 export async function migrateToCloud(userId: string): Promise<MigrationResult> {
   const migratedKeys: string[] = [];
   const errors: string[] = [];
-
-  // Migrate ranked stats
-  const rankedResult = await migrateRankedStats(userId);
-  if (rankedResult.success) {
-    if (safeParseLocalStorage('xawars_ranked_stats') !== null) {
-      migratedKeys.push('xawars_ranked_stats');
-    }
-  } else if (rankedResult.error) {
-    errors.push(rankedResult.error);
-  }
 
   // Migrate deployment history
   const deploymentResult = await migrateDeploymentHistory(userId);

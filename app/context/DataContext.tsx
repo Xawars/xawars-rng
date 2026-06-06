@@ -5,42 +5,14 @@ import { supabase } from '../lib/supabase';
 import { syncQueue } from '../lib/sync-queue';
 import { detectLocalStorageData, migrateToCloud, clearMigratedKeys } from '../lib/migration-service';
 import { useAuth } from './AuthContext';
-import type { RankProgress, RankedStats } from '../data/types';
 import type { DeploymentRecord, OperatorStatRecord } from '../types/database';
 import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
 import type { ContentIdea } from '../lib/openai';
-
-// localStorage keys
-const RANKED_STATS_KEY = 'xawars_ranked_stats';
-
-/**
- * Default rank progress for a fresh platform.
- */
-const DEFAULT_RANK_PROGRESS: RankProgress = {
-  tier: 'Copper',
-  division: 5,
-  rp: 0,
-  peakTier: 'Copper',
-  peakDivision: 5,
-};
-
-/**
- * Default ranked stats for both platforms.
- */
-const DEFAULT_RANKED_STATS: RankedStats = {
-  PC: { ...DEFAULT_RANK_PROGRESS },
-  Console: { ...DEFAULT_RANK_PROGRESS },
-};
 
 /**
  * The full DataContext value exposed to consumers.
  */
 export interface DataContextValue {
-  // Rank progression
-  rankedStats: RankedStats;
-  updateRankedStats: (platform: 'PC' | 'Console', stats: Partial<RankProgress>) => void;
-  resetRankedSeason: (platform: 'PC' | 'Console') => Promise<void>;
-
   // Roulette history
   deploymentHistory: DeploymentRecord[];
   addDeployment: (record: DeploymentRecord) => void;
@@ -63,68 +35,6 @@ export interface DataContextValue {
 }
 
 const DataContext = createContext<DataContextValue | undefined>(undefined);
-
-/**
- * Load ranked stats from localStorage.
- */
-function loadLocalRankedStats(): RankedStats {
-  if (typeof window === 'undefined') return DEFAULT_RANKED_STATS;
-  try {
-    const raw = localStorage.getItem(RANKED_STATS_KEY);
-    if (!raw) return DEFAULT_RANKED_STATS;
-    const parsed = JSON.parse(raw) as RankedStats;
-    // Validate structure
-    if (parsed.PC && parsed.Console) return parsed;
-    return DEFAULT_RANKED_STATS;
-  } catch {
-    return DEFAULT_RANKED_STATS;
-  }
-}
-
-/**
- * Save ranked stats to localStorage.
- */
-function saveLocalRankedStats(stats: RankedStats): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(RANKED_STATS_KEY, JSON.stringify(stats));
-  } catch {
-    // Storage quota exceeded — silently fail
-  }
-}
-
-/**
- * Fetch ranked stats from Supabase for the given user.
- */
-async function fetchRankedStatsFromCloud(userId: string): Promise<RankedStats | null> {
-  try {
-    const { data, error } = await supabase
-      .from('ranked_stats')
-      .select('platform, tier, division, rp, peak_tier, peak_division')
-      .eq('user_id', userId);
-
-    if (error || !data || data.length === 0) return null;
-
-    const stats: RankedStats = { ...DEFAULT_RANKED_STATS };
-
-    for (const row of data) {
-      const platform = row.platform as 'PC' | 'Console';
-      if (platform === 'PC' || platform === 'Console') {
-        stats[platform] = {
-          tier: row.tier,
-          division: row.division,
-          rp: row.rp,
-          peakTier: row.peak_tier,
-          peakDivision: row.peak_division,
-        };
-      }
-    }
-
-    return stats;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Fetch deployment history from Supabase for the given user.
@@ -160,7 +70,6 @@ async function fetchDeploymentsFromCloud(userId: string): Promise<DeploymentReco
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, isGuest, isLoading: authLoading } = useAuth();
-  const [rankedStats, setRankedStats] = useState<RankedStats>(DEFAULT_RANKED_STATS);
   const [deploymentHistory, setDeploymentHistory] = useState<DeploymentRecord[]>([]);
   const [operatorStats] = useState<Record<string, OperatorStatRecord>>({});
   const [contentIdeas] = useState<SavedContentIdea[]>([]);
@@ -169,13 +78,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Track whether we've already hydrated from cloud for this user session
   const hydratedUserRef = useRef<string | null>(null);
 
-  // Load local ranked stats on mount
-  useEffect(() => {
-    const local = loadLocalRankedStats();
-    setRankedStats(local);
-  }, []);
-
-  // When user logs in, fetch ranked stats from Supabase and hydrate local state
+  // When user logs in, hydrate local state
   useEffect(() => {
     if (authLoading) return;
     if (isGuest || !user) return;
@@ -185,12 +88,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Check for localStorage data to migrate on first login
       if (detectLocalStorageData()) {
         setMigrationStatus('pending');
-      }
-
-      const cloudStats = await fetchRankedStatsFromCloud(user.id);
-      if (cloudStats) {
-        setRankedStats(cloudStats);
-        saveLocalRankedStats(cloudStats);
       }
 
       // Fetch deployment history from cloud
@@ -204,75 +101,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     hydrate();
   }, [user, isGuest, authLoading]);
-
-  /**
-   * Update ranked stats for a specific platform.
-   * Writes locally first, then enqueues sync to cloud if authenticated.
-   */
-  const updateRankedStats = useCallback((platform: 'PC' | 'Console', stats: Partial<RankProgress>) => {
-    setRankedStats((prev) => {
-      const updated: RankedStats = {
-        ...prev,
-        [platform]: {
-          ...prev[platform],
-          ...stats,
-        },
-      };
-
-      // Persist locally
-      saveLocalRankedStats(updated);
-
-      // If authenticated, enqueue cloud sync
-      if (user && !isGuest) {
-        syncQueue.enqueue({
-          table: 'ranked_stats',
-          operation: 'upsert',
-          payload: {
-            user_id: user.id,
-            platform,
-            tier: updated[platform].tier,
-            division: updated[platform].division,
-            rp: updated[platform].rp,
-            peak_tier: updated[platform].peakTier,
-            peak_division: updated[platform].peakDivision,
-            updated_at: new Date().toISOString(),
-          },
-        });
-      }
-
-      return updated;
-    });
-  }, [user, isGuest]);
-
-  const resetRankedSeason = useCallback(async (platform: 'PC' | 'Console') => {
-    // Reset locally
-    setRankedStats((prev) => {
-      const updated: RankedStats = {
-        ...prev,
-        [platform]: {
-          ...prev[platform],
-          tier: 'Copper' as const,
-          division: 1 as const,
-          rp: 0,
-        },
-      };
-      saveLocalRankedStats(updated);
-      return updated;
-    });
-
-    // Delete from Supabase
-    if (user && !isGuest) {
-      const { error } = await supabase
-        .from('ranked_stats')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('platform', platform);
-
-      if (error) {
-        console.error('[XAWARS] Failed to reset ranked season:', error.message);
-      }
-    }
-  }, [user, isGuest]);
 
   // --- Stubs for features implemented in later tasks ---
 
@@ -385,9 +213,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: DataContextValue = {
-    rankedStats,
-    updateRankedStats,
-    resetRankedSeason,
     deploymentHistory,
     addDeployment,
     deleteDeployment,

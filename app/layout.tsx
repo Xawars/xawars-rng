@@ -4,7 +4,6 @@ import "./globals.css";
 import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
-import { MasteryProvider } from "./context/MasteryContext";
 import { OnboardingProvider } from "./components/onboarding";
 
 const geistSans = Geist({
@@ -34,13 +33,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           <DataProvider>
-            <MasteryProvider>
-              <SoundProvider>
-                <OnboardingProvider>
-                  {children}
-                </OnboardingProvider>
-              </SoundProvider>
-            </MasteryProvider>
+            <SoundProvider>
+              <OnboardingProvider>
+                {children}
+              </OnboardingProvider>
+            </SoundProvider>
           </DataProvider>
         </AuthProvider>
       </body>
