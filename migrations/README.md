@@ -21,6 +21,7 @@ This folder contains SQL migrations for the XAWARS RNG Supabase database. Migrat
 |------|-------------|
 | `001_initial_schema.sql` | Creates all application tables, RLS policies, indexes, and triggers |
 | `002_operator_mastery_tables.sql` | Creates mastery system tables (challenges, operator_mastery, mastery_badges, mastery_streak, match_results) and adds `match_result` column to deployments |
+| `003_map_performance_table.sql` | Creates `map_performance` table for per-operator, per-map kill/death/match tracking with additive upsert semantics |
 
 ---
 
@@ -34,7 +35,8 @@ auth.users (managed by Supabase)
     ├── 1:N ──► operator_stats (unique per operator)
     ├── 1:1 ──► gamification
     ├── 1:N ──► achievements (unique per achievement)
-    └── 1:N ──► content_ideas
+    ├── 1:N ──► content_ideas
+    └── 1:N ──► map_performance (unique per operator + map)
 ```
 
 All tables reference `auth.users(id)` with `ON DELETE CASCADE` — deleting a user removes all their data.
@@ -140,6 +142,29 @@ Records which achievements a user has unlocked. One row per user + achievement c
 **Unique constraint:** `(user_id, achievement_id)` — prevents duplicate unlocks.
 
 **RLS Policies:** Users can only access their own achievements.
+
+### `map_performance`
+
+Tracks per-operator, per-map performance statistics. One row per user + operator + map combination. Uses additive upsert semantics — deltas are always summed into existing totals on conflict.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated unique ID |
+| `user_id` | uuid (FK) | References `auth.users(id)` |
+| `operator_id` | text | Internal operator identifier |
+| `map_id` | text | Map identifier (from maps.ts) |
+| `kills` | int | Total kills with this operator on this map |
+| `deaths` | int | Total deaths with this operator on this map |
+| `matches` | int | Number of matches played with this operator on this map |
+| `updated_at` | timestamptz | Last modification timestamp |
+
+**Unique constraint:** `(user_id, operator_id, map_id)` — one performance row per operator per map per user.
+
+**RLS Policies:** Users can only access their own map performance data.
+
+**Upsert pattern:** Uses `ON CONFLICT ... DO UPDATE SET kills = map_performance.kills + EXCLUDED.kills` for additive semantics (kills, deaths, and matches are summed, never overwritten).
+
+---
 
 ### `content_ideas`
 

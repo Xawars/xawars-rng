@@ -21,6 +21,7 @@ interface OperatorDisplayProps {
 /** Per-operator background image position overrides */
 const OPERATOR_BG_POSITION: Record<string, string> = {
   buck: 'center 20%',
+  kali: 'center 25%',
 };
 
 /** Map role names to CSS color values for border tinting */

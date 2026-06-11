@@ -5,6 +5,8 @@ import { X, Crosshair, Skull, Clock, TrendingUp, Zap, PieChart, Swords } from 'l
 import { Button } from '../ui/Button';
 import { OperatorIcon } from '../OperatorIcon';
 import { RivalryView } from '../rivalry/RivalryView';
+import { MapBreakdownPanel } from './MapBreakdownPanel';
+import { useData } from '../../context/DataContext';
 import type { Operator } from '../../data/types';
 import type { MasteryTier } from './MasteryRow';
 
@@ -61,6 +63,7 @@ const tierProgressColors: Record<MasteryTier, string> = {
 
 export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
   const [isRivalryOpen, setIsRivalryOpen] = useState(false);
+  const { mapPerformanceRecords } = useData();
 
   useEffect(() => {
     if (!data) return;
@@ -82,7 +85,7 @@ export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto overflow-hidden animate-in zoom-in-95 duration-300">
 
         {/* Header */}
         <div className="relative p-5 border-b border-white/5 overflow-hidden">
@@ -173,6 +176,9 @@ export function MasteryDetailModal({ data, onClose }: MasteryDetailModalProps) {
             color="text-zinc-300"
           />
         </div>
+
+        {/* Map Performance Breakdown */}
+        <MapBreakdownPanel operatorId={operator.id} records={mapPerformanceRecords} />
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-white/5 bg-zinc-900/50 flex items-center justify-between">
