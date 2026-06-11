@@ -13,6 +13,7 @@ export interface SiteData {
 export interface MapData {
   id: string;
   name: string;
+  active: boolean;  // Controls visibility in MapSelector
   sites: SiteData[];
 }
 
@@ -27,458 +28,206 @@ export interface MapSiteData {
 
 export const MAPS: MapData[] = [
   {
+    id: 'chalet',
+    name: 'Chalet',
+    active: true,
+    sites: [
+      { id: 'kitchen-dining', name: 'Kitchen/Dining' },
+      { id: 'bar-gaming', name: 'Bar/Gaming Room' },
+      { id: 'trophy-office', name: 'Trophy Room/Office' },
+      { id: 'master-bedroom', name: 'Master Bedroom/Master Bathroom' },
+    ],
+  },
+  {
     id: 'bank',
     name: 'Bank',
+    active: true,
     sites: [
-      { id: 'basement', name: 'Basement', nicknames: ['B'] },
-      { id: 'ceo', name: 'CEO Office', nicknames: ['C'] },
-      { id: 'teller', name: 'Teller', nicknames: ['T'] },
-      { id: 'vault', name: 'Vault', nicknames: ['V'] },
+      { id: 'ceo-executive', name: 'CEO Office/Executive Lounge' },
+      { id: 'locker-cctv', name: 'Locker/CCTV' },
+      { id: 'open-archives', name: 'Open Area/Archives' },
+      { id: 'tellers-archives', name: 'Tellers/Archives' },
     ],
   },
   {
     id: 'border',
     name: 'Border',
+    active: true,
     sites: [
-      { id: 'archives', name: 'Archives' },
-      { id: 'armory', name: 'Armory' },
-      { id: 'customs', name: 'Customs' },
-      { id: 'supply', name: 'Supply Room' },
-      { id: 'west', name: 'West Wing' },
+      { id: 'armory-archives', name: 'Armory/Archives' },
+      { id: 'ventilation-workshop', name: 'Ventilation/Workshop' },
+      { id: 'tellers-bathroom', name: 'Tellers/Bathroom' },
+      { id: 'supply-customs', name: 'Supply/Customs' },
     ],
   },
   {
     id: 'clubhouse',
     name: 'Clubhouse',
+    active: true,
     sites: [
-      { id: 'gym', name: 'Gym', nicknames: ['Gym/Cash'] },
-      { id: 'church', name: 'Church' },
-      { id: 'basement', name: 'Basement' },
-      { id: 'lounge', name: 'Lounge' },
-    ],
-  },
-  {
-    id: 'oregon',
-    name: 'Oregon',
-    sites: [
-      { id: 'basement', name: 'Basement', nicknames: ['B'] },
-      { id: 'dorms', name: 'Dorms', nicknames: ['D'] },
-      { id: 'kitchen', name: 'Kitchen' },
-      { id: 'tower', name: 'Tower' },
-    ],
-  },
-  {
-    id: 'chalet',
-    name: 'Chalet',
-    sites: [
-      { id: 'basement', name: 'Basement' },
-      { id: 'library', name: 'Library' },
-      { id: 'master', name: 'Master Bedroom' },
-      { id: 'snow', name: 'Snowmobile Garage' },
+      { id: 'church-arsenal', name: 'Church/Arsenal' },
+      { id: 'cash-cctv', name: 'Cash/CCTV' },
+      { id: 'gym-bedroom', name: 'Gym/Bedroom' },
+      { id: 'bar-stock', name: 'Bar/Stock' },
     ],
   },
   {
     id: 'kafe',
     name: 'Kafe Dostoyevsky',
+    active: true,
     sites: [
-      { id: 'kitchen', name: 'Kitchen' },
-      { id: 'museum', name: 'Museum' },
-      { id: 'piano', name: 'Piano Room' },
+      { id: 'reading-dining', name: 'Reading/Dining' },
+      { id: 'mining-cocktail', name: 'Mining/Cocktail' },
+      { id: 'service-kitchen', name: 'Service/Kitchen' },
+      { id: 'vip-clash', name: 'VIP/Clash Room' },
+    ],
+  },
+  {
+    id: 'nighthaven-labs',
+    name: 'Nighthaven Labs',
+    active: true,
+    sites: [
+      { id: 'command-servers', name: 'Command Center/Servers' },
+      { id: 'assembly-control', name: 'Assembly/Control Room' },
+      { id: 'kitchen-lab', name: 'Kitchen/Lab' },
+      { id: 'aquarium-lounge', name: 'Aquarium/Lounge' },
+    ],
+  },
+  {
+    id: 'coastline',
+    name: 'Coastline',
+    active: true,
+    sites: [
+      { id: 'hookah-billiards', name: 'Hookah/Billiards' },
+      { id: 'penthouse-theater', name: 'Penthouse/Theater' },
+      { id: 'kitchen-service', name: 'Kitchen/Service Entrance' },
+      { id: 'bluebar-vip', name: 'Blue Bar/VIP' },
     ],
   },
   {
     id: 'consulate',
     name: 'Consulate',
+    active: true,
     sites: [
-      { id: 'basement', name: 'Basement' },
-      { id: 'garage', name: 'Garage' },
-      { id: 'lobby', name: 'Lobby' },
-      { id: 'upstairs', name: 'Upstairs', nicknames: ['U'] },
+      { id: 'garage-archives', name: 'Garage/Archives' },
+      { id: 'ceo-meeting', name: 'CEO Office/Meeting Room' },
+      { id: 'press-reception', name: 'Press Room/Reception' },
+      { id: 'customs-office', name: 'Customs/Office' },
+    ],
+  },
+  {
+    id: 'fortress',
+    name: 'Fortress',
+    active: true,
+    sites: [
+      { id: 'armory-archives', name: 'Armory/Archives' },
+      { id: 'command-control', name: 'Command/Control Room' },
+      { id: 'dining-kitchen', name: 'Dining/Kitchen' },
+      { id: 'supply-workshop', name: 'Supply/Workshop' },
+    ],
+  },
+  {
+    id: 'oregon',
+    name: 'Oregon',
+    active: true,
+    sites: [
+      { id: 'kids-dorms', name: 'Kids/Dorms' },
+      { id: 'laundry-supply', name: 'Laundry/Supply' },
+      { id: 'kitchen-dining', name: 'Kitchen/Dining' },
+      { id: 'meeting-security', name: 'Meeting Hall/Security' },
+    ],
+  },
+  {
+    id: 'villa',
+    name: 'Villa',
+    active: true,
+    sites: [
+      { id: 'aviator-games', name: 'Aviator/Games Room' },
+      { id: 'trophy-statuary', name: 'Trophy/Statuary' },
+      { id: 'living-billiards', name: 'Living Room/Billiards' },
+      { id: 'master-study', name: 'Master Bedroom/Study' },
+    ],
+  },
+  {
+    id: 'emerald-plains',
+    name: 'Emerald Plains',
+    active: true,
+    sites: [
+      { id: 'vault-projector', name: 'Vault/Projector' },
+      { id: 'office-meeting', name: 'Office/Meeting Room' },
+      { id: 'dining-kitchen', name: 'Dining/Kitchen' },
+      { id: 'lobby-workroom', name: 'Main Lobby/Workroom' },
+    ],
+  },
+  {
+    id: 'lair',
+    name: 'Lair',
+    active: true,
+    sites: [
+      { id: 'command-armory', name: 'Command Center/Armory' },
+      { id: 'radio-radar', name: 'Radio/Radar' },
+      { id: 'bunk-locker', name: 'Bunk/Locker' },
+      { id: 'mess-rec', name: 'Mess/Rec' },
+    ],
+  },
+  {
+    id: 'kanal',
+    name: 'Kanal',
+    active: true,
+    sites: [
+      { id: 'server-map', name: 'Server/Map Room' },
+      { id: 'cafeteria-cookhouse', name: 'Cafeteria/Cookhouse' },
+      { id: 'radar-communication', name: 'Radar/Communication' },
+      { id: 'control-bridge', name: 'Control Room/Bridge' },
+    ],
+  },
+  {
+    id: 'skyscraper',
+    name: 'Skyscraper',
+    active: true,
+    sites: [
+      { id: 'tea-exhibition', name: 'Tea Room/Exhibition' },
+      { id: 'office-exhibition', name: 'Office/Exhibition' },
+      { id: 'kitchen-bbq', name: 'Kitchen/BBQ' },
+      { id: 'bathroom-bedroom', name: 'Bathroom/Bedroom' },
+    ],
+  },
+  {
+    id: 'theme-park',
+    name: 'Theme Park',
+    active: true,
+    sites: [
+      { id: 'bunk-arcade', name: 'Bunk/Arcade' },
+      { id: 'druglab-daycare', name: 'Drug Lab/Day Care' },
+      { id: 'initiation-thrill', name: 'Initiation/Thrill' },
+      { id: 'dragon-training', name: 'Dragon/Training' },
+    ],
+  },
+  {
+    id: 'outback',
+    name: 'Outback',
+    active: true,
+    sites: [
+      { id: 'laundry-party', name: 'Laundry/Party' },
+      { id: 'games-petshop', name: 'Games/Pet Shop' },
+      { id: 'kitchen-dining', name: 'Kitchen/Dining' },
+      { id: 'office-instrument', name: 'Office/Instrument Storage' },
+    ],
+  },
+  {
+    id: 'calypso-casino',
+    name: 'Calypso Casino',
+    active: true,
+    sites: [
+      { id: 'casino-vip', name: 'Casino Floor/VIP' },
+      { id: 'security-count', name: 'Security/Count Room' },
+      { id: 'hotel-restaurant', name: 'Hotel/Restaurant' },
+      { id: 'backstage-loading', name: 'Backstage/Loading Dock' },
     ],
   },
 ];
 
-export const MAP_SITE_DATA: Record<string, MapSiteData> = {
-  // BANK
-  'bank-basement': {
-    defense: [
-      { operatorId: 'smoke', reason: 'Strong plant denial for default plant spots in corridors', importance: 'primary' },
-      { operatorId: 'mira', reason: 'Mirror control for long basement corridors', importance: 'primary' },
-      { operatorId: 'echo', reason: 'Yokai drone denial and plant disruption', importance: 'secondary' },
-      { operatorId: 'maestro', reason: 'Camera control for garage and connector entries', importance: 'secondary' },
-      { operatorId: 'lesion', reason: 'Gu mines for main entrance denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Essential for opening garage/reinforcements', importance: 'primary' },
-      { operatorId: 'hibana', reason: 'Quick hatch opens for vertical plays', importance: 'primary' },
-      { operatorId: 'ace', reason: 'Reliable hard breach for multiple walls', importance: 'secondary' },
-      { operatorId: 'thatcher', reason: 'Support for hard breachers with EMPs', importance: 'secondary' },
-      { operatorId: 'montagne', reason: 'Shield for pushing main hallway', importance: 'niche' },
-    ],
-    strategyTips: {
-      defense: 'Hold long corridors with Mira mirrors and deny plant with Smoke. Use utility to slow the push through garage and connector.',
-      attack: 'Open garage wall with hard breach, then use vertical play from above to clear anchors. Coordinate EMP support for clean breach.',
-    },
-  },
-  'bank-ceo': {
-    defense: [
-      { operatorId: 'jager', reason: 'ADS placement for default plant spots', importance: 'primary' },
-      { operatorId: 'bandit', reason: 'Bandit tricking for meeting room walls', importance: 'primary' },
-      { operatorId: 'valkyrie', reason: 'Cameras for monitoring main entrance', importance: 'secondary' },
-      { operatorId: 'wamai', reason: 'Alternative to Jager for utility', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'ash', reason: 'Quick breaching for front push', importance: 'primary' },
-      { operatorId: 'thermite', reason: 'Opening main wall to CEO', importance: 'primary' },
-      { operatorId: 'buck', reason: 'Soft breach from floor below', importance: 'secondary' },
-      { operatorId: 'zofia', reason: 'Soft breach and concussion utility', importance: 'secondary' },
-    ],
-    strategyTips: {
-      defense: 'Bandit trick the meeting room walls and use ADS to deny utility. Hold angles from CEO with Valkyrie intel.',
-      attack: 'Open the main wall to CEO with Thermite, then use vertical play from below with Buck to flush out anchors.',
-    },
-  },
-  'bank-teller': {
-    defense: [
-      { operatorId: 'castle', reason: 'Window barricades for teller entry denial', importance: 'primary' },
-      { operatorId: 'pulse', reason: 'Heartbeat sensor for vault approach intel', importance: 'primary' },
-      { operatorId: 'doc', reason: 'Self-revive and anchor potential', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'sledge', reason: 'Sledge for floor above teller', importance: 'primary' },
-      { operatorId: 'buck', reason: 'Vertical soft breach from floor 2', importance: 'primary' },
-      { operatorId: 'iq', reason: 'Utility spotting through floors', importance: 'secondary' },
-    ],
-  },
-  'bank-vault': {
-    defense: [
-      { operatorId: 'frost', reason: 'Welcome mats for vault entrance', importance: 'primary' },
-      { operatorId: 'kapkan', reason: 'Tripwires on vault approaches', importance: 'primary' },
-      { operatorId: 'mute', reason: 'Jammer for drone denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'hibana', reason: 'Opening ceiling for vertical play', importance: 'primary' },
-      { operatorId: 'twitch', reason: 'Drone utility clearing', importance: 'secondary' },
-      { operatorId: 'dokkaebi', reason: 'Hack cameras for intel', importance: 'secondary' },
-    ],
-  },
-
-  // BORDER
-  'border-archives': {
-    defense: [
-      { operatorId: 'clash', reason: 'Shield denial for archives entry', importance: 'primary' },
-      { operatorId: 'kaid', reason: 'Electroclaw for ceiling denial', importance: 'primary' },
-      { operatorId: 'goyo', reason: 'Volcano shields for site denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'montagne', reason: 'Shield for pushing archives hallway', importance: 'primary' },
-      { operatorId: 'fuze', reason: 'Cluster charge for site clearing', importance: 'secondary' },
-      { operatorId: 'gridlock', reason: 'Trax deployment for map control', importance: 'niche' },
-    ],
-  },
-  'border-armory': {
-    defense: [
-      { operatorId: 'echo', reason: 'Drone denial and intel for armory hallway', importance: 'primary' },
-      { operatorId: 'maestro', reason: 'Evil eyes for armory windows', importance: 'primary' },
-      { operatorId: 'smoke', reason: 'Smoke for armory plant denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening armory wall', importance: 'primary' },
-      { operatorId: 'thatcher', reason: 'EMP support for hard breach', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion for holding angles', importance: 'secondary' },
-    ],
-  },
-  'border-customs': {
-    defense: [
-      { operatorId: ' Ela', reason: 'Concussion mines for customs approach', importance: 'primary' },
-      { operatorId: 'vigil', reason: 'Hidden intel denial and roam potential', importance: 'primary' },
-      { operatorId: ' lesion', reason: 'Gu mines for main entrance', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'ash', reason: 'Quick soft breach into customs', importance: 'primary' },
-      { operatorId: 'thermite', reason: 'Breaching customs wall', importance: 'primary' },
-      { operatorId: 'buck', reason: 'Soft breach from outside', importance: 'secondary' },
-    ],
-  },
-  'border-supply': {
-    defense: [
-      { operatorId: 'mira', reason: 'Black mirrors for supply control', importance: 'primary' },
-      { operatorId: 'jager', reason: 'ADS for default plant spots', importance: 'primary' },
-      { operatorId: 'rook', reason: 'Armor for team utility', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'buck', reason: 'Soft breach from archives floor', importance: 'primary' },
-      { operatorId: 'sledge', reason: 'Sledge for vertical plays', importance: 'primary' },
-      { operatorId: 'iq', reason: 'Finding defender utilities', importance: 'secondary' },
-    ],
-  },
-  'border-west': {
-    defense: [
-      { operatorId: 'castle', reason: 'Window barricades for west wing denial', importance: 'primary' },
-      { operatorId: 'azami', reason: 'Kiba barriers for site hardening', importance: 'primary' },
-      { operatorId: 'wamai', reason: 'Utility magnet for anti-nade', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'maverick', reason: 'Quiet hard breach for windows', importance: 'primary' },
-      { operatorId: 'nomad', reason: 'Airjabs for holding flanks', importance: 'secondary' },
-      { operatorId: 'flores', reason: 'Drone clearing for push', importance: 'secondary' },
-    ],
-  },
-
-  // CLUBHOUSE
-  'clubhouse-gym': {
-    defense: [
-      { operatorId: 'jager', reason: 'ADS for gym entrance denial', importance: 'primary' },
-      { operatorId: 'bandit', reason: 'Bandit tricking for cash room walls', importance: 'primary' },
-      { operatorId: 'echo', reason: 'Drone intel for room clearing', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening cash room wall', importance: 'primary' },
-      { operatorId: 'ash', reason: 'Quick breaching for main entry', importance: 'primary' },
-      { operatorId: 'montagne', reason: 'Shield for hallway push', importance: 'secondary' },
-    ],
-    strategyTips: {
-      defense: 'Bandit trick the cash room walls and use ADS to deny grenades. Hold gym with crossfire angles.',
-      attack: 'Open cash room wall and push from multiple angles. Use shield to draw attention while teammates flank.',
-    },
-  },
-  'clubhouse-church': {
-    defense: [
-      { operatorId: 'mira', reason: 'Black mirrors for church control', importance: 'primary' },
-      { operatorId: 'smoke', reason: 'Plant denial for altar spots', importance: 'primary' },
-      { operatorId: 'valkyrie', reason: 'Cameras for church approach intel', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'sledge', reason: 'Sledge for soft breaching altar', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion for clearing church', importance: 'primary' },
-      { operatorId: 'thatcher', reason: 'EMP for Mira denial', importance: 'secondary' },
-    ],
-  },
-  'clubhouse-basement': {
-    defense: [
-      { operatorId: 'lesion', reason: 'Gu mines for basement corridors', importance: 'primary' },
-      { operatorId: 'kapkan', reason: 'Tripwires for main entry', importance: 'primary' },
-      { operatorId: 'frost', reason: 'Welcome mats for stair entries', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening garage/reinforcements', importance: 'primary' },
-      { operatorId: 'hibana', reason: 'Quick hatch openings', importance: 'primary' },
-      { operatorId: 'twitch', reason: 'Drone utility clearing', importance: 'secondary' },
-    ],
-  },
-  'clubhouse-lounge': {
-    defense: [
-      { operatorId: 'kaid', reason: 'Electroclaw for lounge walls', importance: 'primary' },
-      { operatorId: 'goyo', reason: 'Volcano shields for site denial', importance: 'primary' },
-      { operatorId: 'azami', reason: 'Kiba barriers for lounge', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'buck', reason: 'Soft breach from bar floor', importance: 'primary' },
-      { operatorId: 'ace', reason: 'Reliable hard breach for multiple walls', importance: 'primary' },
-      { operatorId: 'gridlock', reason: 'Trax for map control', importance: 'niche' },
-    ],
-  },
-
-  // OREGON
-  'oregon-basement': {
-    defense: [
-      { operatorId: 'smoke', reason: 'Plant denial for basement corridors', importance: 'primary' },
-      { operatorId: 'mira', reason: 'Mirror control for long hallway', importance: 'primary' },
-      { operatorId: 'echo', reason: 'Yokai for drone denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening boiler room walls', importance: 'primary' },
-      { operatorId: 'hibana', reason: 'Hatch opening for vertical play', importance: 'primary' },
-      { operatorId: 'ace', reason: 'Reliable breach for multiple points', importance: 'secondary' },
-    ],
-    strategyTips: {
-      defense: 'Use Mira mirrors to control the long hallway and deny plant with Smoke. Anchor in laundry with crossfire.',
-      attack: 'Open boiler room walls and use vertical play from kitchen hatch. Coordinate hard breach with EMP support.',
-    },
-  },
-  'oregon-dorms': {
-    defense: [
-      { operatorId: 'jager', reason: 'ADS for dorms entry', importance: 'primary' },
-      { operatorId: 'vigil', reason: 'ERC and roam potential', importance: 'primary' },
-      { operatorId: 'ela', reason: 'Concussion for hallway denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'ash', reason: 'Quick breach for main entry', importance: 'primary' },
-      { operatorId: 'sledge', reason: 'Sledge for floor soft breach', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion and breach utility', importance: 'secondary' },
-    ],
-  },
-  'oregon-kitchen': {
-    defense: [
-      { operatorId: 'castle', reason: 'Window denial for kitchen', importance: 'primary' },
-      { operatorId: 'pulse', reason: 'Heartbeat for stairs intel', importance: 'primary' },
-      { operatorId: 'doc', reason: 'Anchor with revive potential', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening kitchen wall', importance: 'primary' },
-      { operatorId: 'buck', reason: 'Soft breach from dining', importance: 'primary' },
-      { operatorId: 'maverick', reason: 'Quiet breach for surprise entry', importance: 'secondary' },
-    ],
-  },
-  'oregon-tower': {
-    defense: [
-      { operatorId: 'azami', reason: 'Kiba barriers for tower entry', importance: 'primary' },
-      { operatorId: 'maestro', reason: 'Camera control for tower', importance: 'primary' },
-      { operatorId: 'thunderbird', reason: 'Healer for tower hold', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'maverick', reason: 'Quiet hard breach for tower', importance: 'primary' },
-      { operatorId: 'sens', reason: 'Roe camera for recon', importance: 'secondary' },
-      { operatorId: 'ram', reason: 'Breaching robot for entry', importance: 'niche' },
-    ],
-  },
-
-  // CHALET
-  'chalet-basement': {
-    defense: [
-      { operatorId: 'smoke', reason: 'Plant denial for basement site', importance: 'primary' },
-      { operatorId: 'goyo', reason: 'Volcano shields for main entrance', importance: 'primary' },
-      { operatorId: 'lesion', reason: 'Gu mines for hallway', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening garage/main entrance walls', importance: 'primary' },
-      { operatorId: 'fuze', reason: 'Cluster charge for site clearing', importance: 'primary' },
-      { operatorId: 'gridlock', reason: 'Trax for area denial', importance: 'secondary' },
-    ],
-  },
-  'chalet-library': {
-    defense: [
-      { operatorId: 'mira', reason: 'Black mirrors for library control', importance: 'primary' },
-      { operatorId: 'jager', reason: 'ADS for main entrance', importance: 'primary' },
-      { operatorId: 'valkyrie', reason: 'Cameras for library intel', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'sledge', reason: 'Sledge for stairs soft breach', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion and breach utility', importance: 'primary' },
-      { operatorId: 'iq', reason: 'Finding Mira mirrors', importance: 'secondary' },
-    ],
-  },
-  'chalet-master': {
-    defense: [
-      { operatorId: 'mozzie', reason: 'Drone denial for master bedroom', importance: 'primary' },
-      { operatorId: 'wamai', reason: 'Magnet for anti-utility', importance: 'primary' },
-      { operatorId: 'caveira', reason: 'Roam potential and silent step', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'jackal', reason: 'Track roaming defenders', importance: 'primary' },
-      { operatorId: 'dokkaebi', reason: 'Hack cameras for intel', importance: 'primary' },
-      { operatorId: 'flores', reason: 'Drone utility clearing', importance: 'secondary' },
-    ],
-  },
-  'chalet-snow': {
-    defense: [
-      { operatorId: 'frost', reason: 'Welcome mats for snow entrance', importance: 'primary' },
-      { operatorId: 'kapkan', reason: 'Tripwires for garage approaches', importance: 'primary' },
-      { operatorId: 'bandit', reason: 'Bandit tricking for garage wall', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening garage walls', importance: 'primary' },
-      { operatorId: 'montagne', reason: 'Shield for garage push', importance: 'primary' },
-      { operatorId: 'thatcher', reason: 'EMP for utility denial', importance: 'secondary' },
-    ],
-  },
-
-  // KAFE
-  'kafe-kitchen': {
-    defense: [
-      { operatorId: 'smoke', reason: 'Plant denial for kitchen site', importance: 'primary' },
-      { operatorId: 'mira', reason: 'Mirror control for kitchen', importance: 'primary' },
-      { operatorId: 'goyo', reason: 'Volcano shields for denial', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening kitchen walls', importance: 'primary' },
-      { operatorId: 'ash', reason: 'Quick breach for main entry', importance: 'primary' },
-      { operatorId: 'sledge', reason: 'Soft breach from floor above', importance: 'secondary' },
-    ],
-    strategyTips: {
-      defense: 'Control kitchen with Mira mirrors and deny plant with Smoke. Use Goyo shields to slow the push from bakery.',
-      attack: 'Open kitchen walls with Thermite and use vertical play from reading room above. Clear utility before pushing.',
-    },
-  },
-  'kafe-museum': {
-    defense: [
-      { operatorId: 'jager', reason: 'ADS for museum entry', importance: 'primary' },
-      { operatorId: 'echo', reason: 'Drone for museum denial', importance: 'primary' },
-      { operatorId: 'rook', reason: 'Armor utility', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'buck', reason: 'Soft breach from top floor', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion for holding angles', importance: 'primary' },
-      { operatorId: 'iq', reason: 'Finding defender utilities', importance: 'secondary' },
-    ],
-  },
-  'kafe-piano': {
-    defense: [
-      { operatorId: 'maestro', reason: 'Evil eyes for piano windows', importance: 'primary' },
-      { operatorId: 'ela', reason: 'Concussion for main entry', importance: 'primary' },
-      { operatorId: 'pulse', reason: 'Heartbeat for stairs intel', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'maverick', reason: 'Quiet hard breach for piano', importance: 'primary' },
-      { operatorId: 'thermite', reason: 'Opening main piano wall', importance: 'primary' },
-      { operatorId: 'sens', reason: 'Roe camera for entry intel', importance: 'secondary' },
-    ],
-  },
-
-  // CONSULATE
-  'consulate-basement': {
-    defense: [
-      { operatorId: 'smoke', reason: 'Plant denial for basement corridors', importance: 'primary' },
-      { operatorId: 'echo', reason: 'Drone denial for stairs', importance: 'primary' },
-      { operatorId: 'lesion', reason: 'Gu mines for main entrance', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening garage walls', importance: 'primary' },
-      { operatorId: 'hibana', reason: 'Hatch openings for vertical play', importance: 'primary' },
-      { operatorId: 'ace', reason: 'Reliable breach for multiple points', importance: 'secondary' },
-    ],
-    strategyTips: {
-      defense: 'Deny plant with Smoke and use Echo drones to disrupt pushes from stairs. Gu mines slow the main entrance approach.',
-      attack: 'Open garage walls and use vertical play from above. Coordinate hard breach with utility clearing.',
-    },
-  },
-  'consulate-garage': {
-    defense: [
-      { operatorId: 'kaid', reason: 'Electroclaw for garage walls', importance: 'primary' },
-      { operatorId: 'bandit', reason: 'Bandit tricking for garage wall', importance: 'primary' },
-      { operatorId: 'clash', reason: 'Shield denial for garage entry', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening garage wall', importance: 'primary' },
-      { operatorId: 'montagne', reason: 'Shield for garage push', importance: 'primary' },
-      { operatorId: 'nomad', reason: 'Airjabs for holding flank', importance: 'secondary' },
-    ],
-  },
-  'consulate-lobby': {
-    defense: [
-      { operatorId: 'castle', reason: 'Window barricades for lobby denial', importance: 'primary' },
-      { operatorId: 'mira', reason: 'Mirror control for lobby', importance: 'primary' },
-      { operatorId: 'wamai', reason: 'Magnet for anti-utility', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'ash', reason: 'Quick breach for main entry', importance: 'primary' },
-      { operatorId: 'sledge', reason: 'Sledge for floor soft breach', importance: 'primary' },
-      { operatorId: 'maverick', reason: 'Quiet breach for windows', importance: 'secondary' },
-    ],
-  },
-  'consulate-upstairs': {
-    defense: [
-      { operatorId: 'azami', reason: 'Kiba barriers for site hardening', importance: 'primary' },
-      { operatorId: 'jager', reason: 'ADS for default spots', importance: 'primary' },
-      { operatorId: 'maestro', reason: 'Camera control for stairs', importance: 'secondary' },
-    ],
-    attack: [
-      { operatorId: 'thermite', reason: 'Opening main wall to upstairs', importance: 'primary' },
-      { operatorId: 'buck', reason: 'Soft breach from adjacent room', importance: 'primary' },
-      { operatorId: 'zofia', reason: 'Concussion for clearing', importance: 'secondary' },
-    ],
-  },
-};
+export const MAP_SITE_DATA: Record<string, MapSiteData> = {};
 
 export function getMapData(mapId: string, siteId: string): MapSiteData | undefined {
   const key = `${mapId}-${siteId}`;

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { Share2, X } from 'lucide-react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { X } from 'lucide-react';
 import { useRivalry } from '../../hooks/useRivalry';
 import { RivalrySelector } from './RivalrySelector';
 import { RivalryStatCard } from './RivalryStatCard';
@@ -24,14 +24,10 @@ export function RivalryView({ isOpen, onClose, prefilledOperator }: RivalryViewP
     setRightOperator,
     comparison,
     validationError,
-    isExporting,
-    exportImage,
-    comparisonRef,
   } = useRivalry(prefilledOperator);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
 
   // Store previous focus and set initial focus on open
   useEffect(() => {
@@ -96,23 +92,6 @@ export function RivalryView({ isOpen, onClose, prefilledOperator }: RivalryViewP
     }
   }, []);
 
-  // Export handler with error toast (Task 6.2)
-  const handleExport = useCallback(async () => {
-    setExportError(null);
-    try {
-      await exportImage();
-    } catch (err) {
-      setExportError('Export failed. Please try again.');
-    }
-  }, [exportImage]);
-
-  // Auto-dismiss export error toast after 4 seconds
-  useEffect(() => {
-    if (!exportError) return;
-    const timer = setTimeout(() => setExportError(null), 4000);
-    return () => clearTimeout(timer);
-  }, [exportError]);
-
   if (!isOpen) return null;
 
   // Determine verdict display text
@@ -164,73 +143,42 @@ export function RivalryView({ isOpen, onClose, prefilledOperator }: RivalryViewP
             validationError={validationError}
           />
 
-          {/* Comparison Display (exportable area) */}
+          {/* Comparison Display */}
           {comparison && leftOperator && rightOperator && (
-            <>
-              <div
-                ref={comparisonRef}
-                className="w-full max-w-md flex flex-col gap-2 p-4 rounded-xl bg-zinc-900 border border-zinc-700/50"
-              >
-                {/* Operator names header */}
-                <div className="flex items-center justify-between mb-2 px-3">
-                  <span className="text-xs font-bold text-white uppercase tracking-wide">
-                    {leftOperator.name}
-                  </span>
-                  <span className="text-xs font-bold text-white uppercase tracking-wide">
-                    {rightOperator.name}
-                  </span>
-                </div>
-
-                {/* Stat Cards */}
-                {comparison.statCards.map((statCard) => (
-                  <RivalryStatCard
-                    key={statCard.metric}
-                    result={statCard}
-                    leftOperatorName={leftOperator.name}
-                    rightOperatorName={rightOperator.name}
-                  />
-                ))}
-
-                {/* Verdict Summary */}
-                {verdictDisplay && (
-                  <div className="mt-3 pt-3 border-t border-zinc-700/50 text-center">
-                    <p className="text-sm font-bold text-zinc-200">
-                      {verdictDisplay}
-                    </p>
-                  </div>
-                )}
-
-                {/* XA Wars RNG Watermark */}
-                <div className="mt-2 text-center">
-                  <span className="text-[9px] text-zinc-600 font-medium tracking-wider uppercase">
-                    XA Wars RNG
-                  </span>
-                </div>
+            <div
+              className="w-full max-w-md flex flex-col gap-2 p-4 rounded-xl bg-zinc-900 border border-zinc-700/50"
+            >
+              {/* Operator names header */}
+              <div className="flex items-center justify-between mb-2 px-3">
+                <span className="text-xs font-bold text-white uppercase tracking-wide">
+                  {leftOperator.name}
+                </span>
+                <span className="text-xs font-bold text-white uppercase tracking-wide">
+                  {rightOperator.name}
+                </span>
               </div>
 
-              {/* Export/Share Button */}
-              <button
-                onClick={handleExport}
-                disabled={isExporting}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm font-medium hover:bg-zinc-700 hover:border-zinc-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
-                aria-label="Share rivalry comparison as image"
-              >
-                <Share2 className="w-4 h-4" aria-hidden="true" />
-                {isExporting ? 'Exporting...' : 'Share'}
-              </button>
-            </>
+              {/* Stat Cards */}
+              {comparison.statCards.map((statCard) => (
+                <RivalryStatCard
+                  key={statCard.metric}
+                  result={statCard}
+                  leftOperatorName={leftOperator.name}
+                  rightOperatorName={rightOperator.name}
+                />
+              ))}
+
+              {/* Verdict Summary */}
+              {verdictDisplay && (
+                <div className="mt-3 pt-3 border-t border-zinc-700/50 text-center">
+                  <p className="text-sm font-bold text-zinc-200">
+                    {verdictDisplay}
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </div>
-
-        {/* Error toast (non-blocking) */}
-        {exportError && (
-          <div
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 px-4 py-2 rounded-lg bg-red-900/90 border border-red-700/50 text-red-200 text-sm font-medium shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
-            role="alert"
-          >
-            {exportError}
-          </div>
-        )}
       </div>
     </>
   );

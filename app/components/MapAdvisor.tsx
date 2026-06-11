@@ -6,6 +6,9 @@ import { MAPS, getMapData, getSiteById } from '../data/maps';
 import { operators } from '../data/operators';
 import { getRoleColor, Role } from '../data/roles';
 import * as r6operators from 'r6operators';
+import { BestOperatorsSection } from './BestOperatorsSection';
+import { useData } from '../context/DataContext';
+import { computeWinRate, hasLimitedData, getTotalOutcomes } from '../lib/win-loss-logic';
 
 type TransitionType = 'fade' | 'slide-left' | 'slide-right';
 
@@ -17,11 +20,14 @@ export function MapAdvisor() {
   const [transition, setTransition] = useState<TransitionType>('fade');
   const prevSideRef = useRef(selectedSide);
 
+  const { mapPerformanceRecords, mapWinLossRecords } = useData();
+
   const currentMap = MAPS.find(m => m.id === selectedMap);
   const mapData = selectedMap && selectedSite ? getMapData(selectedMap, selectedSite) : null;
   const currentSite = selectedMap && selectedSite ? getSiteById(selectedMap, selectedSite) : null;
   const recommendations = mapData?.[selectedSide] || [];
   const strategyTip = mapData?.strategyTips?.[selectedSide];
+  const bestOperatorsSide = selectedSide === 'attack' ? 'attacker' : 'defender';
 
   const primaryPicks = recommendations.filter(r => r.importance === 'primary');
   const secondaryPicks = recommendations.filter(r => r.importance === 'secondary');
@@ -346,6 +352,51 @@ export function MapAdvisor() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Personal Best Operators on this map */}
+          {selectedMap && (
+            <>
+              {/* Map Win Rate Display */}
+              {(() => {
+                const winLossRecord = mapWinLossRecords[selectedMap];
+                if (!winLossRecord) return null;
+                const totalOutcomes = getTotalOutcomes(winLossRecord);
+                if (totalOutcomes === 0) return null;
+                const winRate = computeWinRate(winLossRecord);
+                const limitedData = hasLimitedData(winLossRecord);
+
+                return (
+                  <div className="mt-4 pt-4 border-t border-zinc-700/50">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-700/30 bg-zinc-800/50">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          Win Rate
+                        </p>
+                        {limitedData && (
+                          <p className="text-[10px] text-zinc-500">
+                            {totalOutcomes} {totalOutcomes === 1 ? 'match' : 'matches'}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className={`text-sm font-black ${
+                          winRate !== null && winRate >= 50 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {winRate}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <BestOperatorsSection
+                mapId={selectedMap}
+                side={bestOperatorsSide}
+                records={mapPerformanceRecords}
+              />
+            </>
           )}
         </div>
       ) : selectedMap && selectedSite ? (

@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RivalryView } from '../RivalryView';
 import type { Operator } from '../../../data/types';
 import type { UseRivalryReturn } from '../../../hooks/useRivalry';
@@ -23,7 +23,6 @@ vi.mock('../../OperatorIcon', () => ({
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
-  Share2: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="share-icon" {...props} />,
   X: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="x-icon" {...props} />,
   Plus: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="plus-icon" {...props} />,
 }));
@@ -85,9 +84,6 @@ function createDefaultMockReturn(overrides: Partial<UseRivalryReturn> = {}): Use
     setRightOperator: vi.fn(),
     comparison: null,
     validationError: null,
-    isExporting: false,
-    exportImage: vi.fn().mockResolvedValue(undefined),
-    comparisonRef: { current: null },
     ...overrides,
   };
 }
@@ -98,10 +94,6 @@ describe('RivalryView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRivalry.mockReturnValue(createDefaultMockReturn());
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   describe('initial render with empty slots', () => {
@@ -165,101 +157,6 @@ describe('RivalryView', () => {
 
       render(<RivalryView isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('export button visibility', () => {
-    /**
-     * Validates: Requirements 4.1
-     */
-    it('shows share button when comparison is available', () => {
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: mockOperatorRight,
-          comparison: mockComparison,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      const shareButton = screen.getByLabelText('Share rivalry comparison as image');
-      expect(shareButton).toBeInTheDocument();
-    });
-
-    it('does not show share button when comparison is null', () => {
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: null,
-          comparison: null,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      expect(screen.queryByLabelText('Share rivalry comparison as image')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('export error handling', () => {
-    /**
-     * Validates: Requirements 4.5
-     */
-    it('shows error toast when exportImage throws', async () => {
-      const mockExportImage = vi.fn().mockRejectedValue(new Error('Canvas error'));
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: mockOperatorRight,
-          comparison: mockComparison,
-          exportImage: mockExportImage,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      const shareButton = screen.getByLabelText('Share rivalry comparison as image');
-      fireEvent.click(shareButton);
-
-      await waitFor(() => {
-        const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent('Export failed. Please try again.');
-      });
-    });
-
-    it('auto-dismisses the error toast after 4 seconds', async () => {
-      vi.useFakeTimers();
-      const mockExportImage = vi.fn().mockRejectedValue(new Error('Canvas error'));
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: mockOperatorRight,
-          comparison: mockComparison,
-          exportImage: mockExportImage,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      const shareButton = screen.getByLabelText('Share rivalry comparison as image');
-
-      await act(async () => {
-        fireEvent.click(shareButton);
-        // Let the rejected promise resolve
-        await Promise.resolve();
-      });
-
-      // Toast should be visible
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-
-      // Advance time by 4 seconds
-      act(() => {
-        vi.advanceTimersByTime(4000);
-      });
-
-      // Toast should be dismissed
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
@@ -385,21 +282,6 @@ describe('RivalryView', () => {
       const closeButton = screen.getByLabelText('Close rivalry view');
       expect(closeButton).toBeInTheDocument();
     });
-
-    it('share button has aria-label="Share rivalry comparison as image"', () => {
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: mockOperatorRight,
-          comparison: mockComparison,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      const shareButton = screen.getByLabelText('Share rivalry comparison as image');
-      expect(shareButton).toBeInTheDocument();
-    });
   });
 
   describe('verdict display', () => {
@@ -423,22 +305,6 @@ describe('RivalryView', () => {
       render(<RivalryView isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.queryByText('Ash leads 4-2')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('XA Wars RNG watermark', () => {
-    it('renders the XA Wars RNG watermark in the exportable area', () => {
-      mockUseRivalry.mockReturnValue(
-        createDefaultMockReturn({
-          leftOperator: mockOperatorLeft,
-          rightOperator: mockOperatorRight,
-          comparison: mockComparison,
-        })
-      );
-
-      render(<RivalryView isOpen={true} onClose={mockOnClose} />);
-
-      expect(screen.getByText('XA Wars RNG')).toBeInTheDocument();
     });
   });
 });

@@ -50,4 +50,129 @@ export interface AchievementRecord {
   unlockedAt: string;
 }
 
+/**
+ * Per-operator per-map performance record.
+ * Maps to the `public.map_performance` Supabase table.
+ */
+export interface MapPerformanceRecord {
+  operatorId: string;
+  mapId: string;
+  kills: number;
+  deaths: number;
+  matches: number;
+}
+
+/**
+ * Computed display stats for a single operator-map combination.
+ * Only computed when the record meets the insight threshold (≥3 matches).
+ */
+export interface MapDisplayStats {
+  mapId: string;
+  mapName: string;
+  kills: number;
+  deaths: number;
+  matches: number;
+  kd: number;       // kills / deaths, to 2 decimal places
+  avgKills: number;  // kills / matches
+}
+
+/**
+ * A single entry in the map breakdown panel for an operator.
+ * Includes threshold gating and best-map highlighting.
+ */
+export interface MapBreakdownEntry {
+  mapId: string;
+  mapName: string;
+  kills: number;
+  deaths: number;
+  matches: number;
+  kd: number | null;        // null if below threshold
+  avgKills: number | null;  // null if below threshold
+  meetsThreshold: boolean;
+  isBest: boolean;          // true for highest K/D entry
+}
+
+/**
+ * A top-performing operator entry for a given map.
+ * Used in the Map Advisor's Best Operators section.
+ */
+export interface BestOperatorEntry {
+  operatorId: string;
+  operatorName: string;
+  kd: number;
+  matches: number;
+}
+
+/**
+ * Per-map win/loss record.
+ * Maps to the `public.map_win_loss` Supabase table.
+ */
+export interface MapWinLossRecord {
+  mapId: string;
+  wins: number;
+  losses: number;
+}
+
+/**
+ * In-memory streak state for tracking consecutive kills.
+ * Not persisted — resets on page load.
+ */
+export interface StreakState {
+  count: number;        // 0..N consecutive kills
+  isHotStreak: boolean; // count >= 3
+}
+
+/**
+ * In-memory session snapshot captured at hydration.
+ * Used to compute session deltas.
+ */
+export interface SessionSnapshot {
+  totalKills: number;
+  totalDeaths: number;
+  operatorStats: Record<string, { kills: number; deaths: number }>;
+  mapWinLoss: Record<string, { wins: number; losses: number }>;
+}
+
+/**
+ * Computed session delta data for display in the session summary modal.
+ */
+export interface SessionDeltaData {
+  kills: number;
+  deaths: number;
+  kdRatio: number | null; // null when deaths = 0 and kills = 0
+  isPerfect: boolean;     // true when kills > 0 and deaths = 0
+  isEmpty: boolean;       // true when kills = 0 and deaths = 0
+  operators: SessionOperatorDelta[];
+  bestMap: SessionBestMap | null;
+  mapWinLossSummary: SessionMapWinLossSummary | null;
+}
+
+/**
+ * Summary of map wins and losses recorded during a session.
+ * Null when no wins or losses were recorded.
+ */
+export interface SessionMapWinLossSummary {
+  wins: number;
+  losses: number;
+}
+
+/**
+ * Per-operator delta within a session.
+ */
+export interface SessionOperatorDelta {
+  operatorId: string;
+  operatorName: string;
+  kills: number;
+  deaths: number;
+}
+
+/**
+ * Best-performing map during a session.
+ */
+export interface SessionBestMap {
+  mapId: string;
+  mapName: string;
+  kd: number;
+}
+
 export type { Loadout, MatchType, Platform };

@@ -1,11 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { syncQueue } from '../lib/sync-queue';
 import { detectLocalStorageData, migrateToCloud, clearMigratedKeys } from '../lib/migration-service';
 import { useAuth } from './AuthContext';
-import type { DeploymentRecord, OperatorStatRecord } from '../types/database';
+import { upsertMapPerformance } from '../lib/map-performance';
+import { upsertMapWinLoss, serializeMapWinLoss, deserializeMapWinLoss } from '../lib/win-loss-logic';
+import type { DeploymentRecord, OperatorStatRecord, MapPerformanceRecord, MapWinLossRecord } from '../types/database';
 import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
 import type { ContentIdea } from '../lib/openai';
 
@@ -27,6 +29,14 @@ export interface DataContextValue {
   contentIdeas: SavedContentIdea[];
   addContentIdea: (idea: ContentIdea) => void;
   deleteContentIdea: (id: string) => void;
+
+  // Map performance
+  mapPerformanceRecords: Record<string, MapPerformanceRecord>;
+  updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => void;
+
+  // Map win/loss
+  mapWinLossRecords: Record<string, MapWinLossRecord>;
+  updateMapWinLoss: (mapId: string, outcome: 'win' | 'loss') => void;
 
   // Migration (stub — implemented in 6.2)
   migrationStatus: 'idle' | 'pending' | 'migrating' | 'complete' | 'failed';
@@ -68,12 +78,214 @@ async function fetchDeploymentsFromCloud(userId: string): Promise<DeploymentReco
   }
 }
 
+/**
+ * Fetch operator stats from Supabase for the given user.
+ */
+async function fetchOperatorStatsFromCloud(userId: string): Promise<Record<string, OperatorStatRecord> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('operator_stats')
+      .select('operator_id, operator_name, operator_side, kills, deaths, deployments')
+      .eq('user_id', userId);
+
+    if (error || !data || data.length === 0) return null;
+
+    const statsMap: Record<string, OperatorStatRecord> = {};
+    for (const row of data) {
+      statsMap[row.operator_id] = {
+        operatorId: row.operator_id,
+        operatorName: row.operator_name,
+        operatorSide: row.operator_side,
+        kills: row.kills ?? 0,
+        deaths: row.deaths ?? 0,
+        deployments: row.deployments ?? 0,
+      };
+    }
+    return statsMap;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch map performance records from Supabase for the given user.
+ */
+async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<string, MapPerformanceRecord> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('map_performance')
+      .select('operator_id, map_id, kills, deaths, matches')
+      .eq('user_id', userId);
+
+    if (error || !data || data.length === 0) return null;
+
+    const records: Record<string, MapPerformanceRecord> = {};
+    for (const row of data) {
+      const key = `${row.operator_id}_${row.map_id}`;
+      records[key] = {
+        operatorId: row.operator_id,
+        mapId: row.map_id,
+        kills: row.kills ?? 0,
+        deaths: row.deaths ?? 0,
+        matches: row.matches ?? 0,
+      };
+    }
+    return records;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch map win/loss records from Supabase for the given user.
+ */
+async function fetchMapWinLossFromCloud(userId: string): Promise<Record<string, MapWinLossRecord> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('map_win_loss')
+      .select('map_id, wins, losses')
+      .eq('user_id', userId);
+
+    if (error || !data || data.length === 0) return null;
+
+    const records: Record<string, MapWinLossRecord> = {};
+    for (const row of data) {
+      records[row.map_id] = {
+        mapId: row.map_id,
+        wins: row.wins ?? 0,
+        losses: row.losses ?? 0,
+      };
+    }
+    return records;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely parse JSON from localStorage, returning null on failure.
+ */
+function safeParseLocalStorage<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+const MAP_PERFORMANCE_STORAGE_KEY = 'xawars_mapPerformance';
+
+/**
+ * Load map performance records from localStorage.
+ */
+function loadMapPerformanceRecords(): Record<string, MapPerformanceRecord> {
+  return safeParseLocalStorage<Record<string, MapPerformanceRecord>>(MAP_PERFORMANCE_STORAGE_KEY) ?? {};
+}
+
+/**
+ * Save map performance records to localStorage.
+ * Handles QuotaExceededError gracefully.
+ */
+function saveMapPerformanceRecords(records: Record<string, MapPerformanceRecord>): void {
+  try {
+    localStorage.setItem(MAP_PERFORMANCE_STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    // QuotaExceededError or other storage issue — log and continue
+    console.warn('[XAWARS] Failed to save map performance records to localStorage');
+  }
+}
+
+const MAP_WIN_LOSS_STORAGE_KEY = 'xawars_mapWinLoss';
+
+/**
+ * Load map win/loss records from localStorage.
+ * Returns empty object on corrupted/missing data.
+ */
+function loadMapWinLossRecords(): Record<string, MapWinLossRecord> {
+  try {
+    const raw = localStorage.getItem(MAP_WIN_LOSS_STORAGE_KEY);
+    if (!raw) return {};
+    return deserializeMapWinLoss(raw);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Save map win/loss records to localStorage.
+ * Handles QuotaExceededError gracefully (logs warning, continues with in-memory state).
+ */
+function saveMapWinLossRecords(records: Record<string, MapWinLossRecord>): void {
+  try {
+    localStorage.setItem(MAP_WIN_LOSS_STORAGE_KEY, serializeMapWinLoss(records));
+  } catch (e) {
+    // QuotaExceededError or other storage issue — log and continue with in-memory state
+    console.warn('[XAWARS] Failed to save map win/loss records to localStorage:', e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Derive operator stats from localStorage data (xawars_operatorKills, xawars_operatorDeaths, xawars_history).
+ */
+function deriveStatsFromLocalStorage(): Record<string, OperatorStatRecord> {
+  const operatorKills = safeParseLocalStorage<Record<string, number>>('xawars_operatorKills') ?? {};
+  const operatorDeaths = safeParseLocalStorage<Record<string, number>>('xawars_operatorDeaths') ?? {};
+  const history = safeParseLocalStorage<Array<{ operator: { id: string; name: string; side: string } }>>('xawars_history') ?? [];
+
+  const statsMap: Record<string, OperatorStatRecord> = {};
+
+  // Count deployments from history
+  for (const item of history) {
+    const id = item.operator.id;
+    if (!statsMap[id]) {
+      statsMap[id] = {
+        operatorId: id,
+        operatorName: item.operator.name,
+        operatorSide: item.operator.side as 'attacker' | 'defender',
+        kills: 0,
+        deaths: 0,
+        deployments: 0,
+      };
+    }
+    statsMap[id].deployments += 1;
+  }
+
+  // Merge kills
+  for (const [id, kills] of Object.entries(operatorKills)) {
+    if (!statsMap[id]) {
+      statsMap[id] = {
+        operatorId: id,
+        operatorName: id,
+        operatorSide: 'attacker',
+        kills: 0,
+        deaths: 0,
+        deployments: 0,
+      };
+    }
+    statsMap[id].kills = kills;
+  }
+
+  // Merge deaths
+  for (const [id, deaths] of Object.entries(operatorDeaths)) {
+    if (statsMap[id]) {
+      statsMap[id].deaths = deaths;
+    }
+  }
+
+  return statsMap;
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, isGuest, isLoading: authLoading } = useAuth();
   const [deploymentHistory, setDeploymentHistory] = useState<DeploymentRecord[]>([]);
-  const [operatorStats] = useState<Record<string, OperatorStatRecord>>({});
+  const [cloudOperatorStats, setCloudOperatorStats] = useState<Record<string, OperatorStatRecord> | null>(null);
+  const [localStatsVersion, setLocalStatsVersion] = useState(0);
   const [contentIdeas] = useState<SavedContentIdea[]>([]);
   const [migrationStatus, setMigrationStatus] = useState<'idle' | 'pending' | 'migrating' | 'complete' | 'failed'>('idle');
+  const [mapPerformanceRecords, setMapPerformanceRecords] = useState<Record<string, MapPerformanceRecord>>({});
+  const [mapWinLossRecords, setMapWinLossRecords] = useState<Record<string, MapWinLossRecord>>({});
 
   // Track whether we've already hydrated from cloud for this user session
   const hydratedUserRef = useRef<string | null>(null);
@@ -96,11 +308,134 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setDeploymentHistory(cloudDeployments);
       }
 
+      // Fetch operator stats from cloud
+      const cloudStats = await fetchOperatorStatsFromCloud(user.id);
+      if (cloudStats) {
+        setCloudOperatorStats(cloudStats);
+      }
+
+      // Fetch map performance records from cloud
+      const cloudMapPerf = await fetchMapPerformanceFromCloud(user.id);
+      if (cloudMapPerf) {
+        setMapPerformanceRecords(cloudMapPerf);
+      }
+
+      // Fetch map win/loss records from cloud
+      const cloudMapWinLoss = await fetchMapWinLossFromCloud(user.id);
+      if (cloudMapWinLoss) {
+        setMapWinLossRecords(cloudMapWinLoss);
+      }
+
       hydratedUserRef.current = user.id;
     };
 
     hydrate();
   }, [user, isGuest, authLoading]);
+
+  // Derive operatorStats: prefer cloud data, fall back to localStorage-derived data
+  const operatorStats = useMemo<Record<string, OperatorStatRecord>>(() => {
+    // If we have cloud stats, use those
+    if (cloudOperatorStats && Object.keys(cloudOperatorStats).length > 0) {
+      return cloudOperatorStats;
+    }
+
+    // Fall back to deriving from localStorage (covers guests and pre-migration users)
+    if (typeof window !== 'undefined') {
+      return deriveStatsFromLocalStorage();
+    }
+
+    return {};
+  // Re-derive when deploymentHistory changes (new deployments affect counts)
+  // or when localStatsVersion bumps (kills/deaths changed)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudOperatorStats, deploymentHistory, localStatsVersion]);
+
+  // Listen for localStorage changes (e.g., when page.tsx updates operatorKills/operatorDeaths)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'xawars_operatorKills' || e.key === 'xawars_operatorDeaths' || e.key === 'xawars_history') {
+        setLocalStatsVersion(v => v + 1);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Load map performance records from localStorage for guest users
+  useEffect(() => {
+    if (isGuest || !user) {
+      const stored = loadMapPerformanceRecords();
+      setMapPerformanceRecords(stored);
+    }
+  }, [isGuest, user]);
+
+  // Load map win/loss records from localStorage for guest users
+  useEffect(() => {
+    if (isGuest || !user) {
+      const stored = loadMapWinLossRecords();
+      setMapWinLossRecords(stored);
+    }
+  }, [isGuest, user]);
+
+  // Update map performance: additive upsert with persistence
+  const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => {
+    setMapPerformanceRecords(prev => {
+      const updated = upsertMapPerformance(prev, operatorId, mapId, delta);
+
+      // Persist to localStorage for guests
+      if (isGuest || !user) {
+        saveMapPerformanceRecords(updated);
+      }
+
+      // For authenticated users, enqueue Supabase upsert via syncQueue
+      if (user && !isGuest) {
+        syncQueue.enqueue({
+          table: 'map_performance',
+          operation: 'upsert',
+          payload: {
+            user_id: user.id,
+            operator_id: operatorId,
+            map_id: mapId,
+            kills: delta.kills ?? 0,
+            deaths: delta.deaths ?? 0,
+            matches: delta.matches ?? 0,
+            updated_at: new Date().toISOString(),
+          },
+        });
+      }
+
+      return updated;
+    });
+  }, [user, isGuest]);
+
+  // Update map win/loss: upsert with localStorage persistence
+  const updateMapWinLoss = useCallback((mapId: string, outcome: 'win' | 'loss') => {
+    setMapWinLossRecords(prev => {
+      const updated = upsertMapWinLoss(prev, mapId, outcome);
+
+      // Persist to localStorage for guests
+      if (isGuest || !user) {
+        saveMapWinLossRecords(updated);
+      }
+
+      // For authenticated users, enqueue Supabase upsert via syncQueue
+      if (user && !isGuest) {
+        syncQueue.enqueue({
+          table: 'map_win_loss',
+          operation: 'upsert',
+          payload: {
+            user_id: user.id,
+            map_id: mapId,
+            wins: outcome === 'win' ? 1 : 0,
+            losses: outcome === 'loss' ? 1 : 0,
+            updated_at: new Date().toISOString(),
+          },
+        });
+      }
+
+      return updated;
+    });
+  }, [user, isGuest]);
 
   // --- Stubs for features implemented in later tasks ---
 
@@ -176,8 +511,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [user, isGuest]);
 
   const updateOperatorStat = useCallback((_operatorId: string, _delta: { kills?: number; deaths?: number }) => {
-    // Stub — will be implemented in task 5.5
-  }, []);
+    // Bump local stats version to trigger re-derivation from localStorage
+    setLocalStatsVersion(v => v + 1);
+
+    // For cloud users, also update cloud stats state
+    if (user && !isGuest) {
+      setCloudOperatorStats(prev => {
+        if (!prev) return prev;
+        const existing = prev[_operatorId];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [_operatorId]: {
+            ...existing,
+            kills: existing.kills + (_delta.kills ?? 0),
+            deaths: existing.deaths + (_delta.deaths ?? 0),
+          },
+        };
+      });
+    }
+  }, [user, isGuest]);
 
   const addContentIdea = useCallback((_idea: ContentIdea) => {
     // Stub — will be implemented in task 5.7
@@ -222,6 +575,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     contentIdeas,
     addContentIdea,
     deleteContentIdea,
+    mapPerformanceRecords,
+    updateMapPerformance,
+    mapWinLossRecords,
+    updateMapWinLoss,
     migrationStatus,
     startMigration,
     dismissMigration,

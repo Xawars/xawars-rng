@@ -11,11 +11,16 @@
  * - xawars_kills: number (total kills — informational, derived from operator kills)
  * - xawars_deaths: number (total deaths — informational, derived from operator deaths)
  * - content-idea-history: SavedContentIdea[] (saved content ideas)
+ * - xawars_mapPerformance: Record<string, MapPerformanceRecord> (map performance)
+ * - xawars_mapWinLoss: Record<string, MapWinLossRecord> (map win/loss)
  */
 
 import { supabase } from './supabase';
 import { serializeContentIdea } from './content-ideas';
+import { mergeMapPerformanceRecords } from './map-performance';
+import { mergeMapWinLossRecords, deserializeMapWinLoss } from './win-loss-logic';
 import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
+import type { MapPerformanceRecord, MapWinLossRecord } from '../types/database';
 
 /**
  * Known localStorage keys that contain migratable app data.
@@ -27,6 +32,8 @@ export const MIGRATABLE_KEYS = [
   'xawars_kills',
   'xawars_deaths',
   'content-idea-history',
+  'xawars_mapPerformance',
+  'xawars_mapWinLoss',
 ] as const;
 
 export type MigratableKey = (typeof MIGRATABLE_KEYS)[number];
@@ -274,6 +281,130 @@ async function migrateContentIdeas(userId: string): Promise<{ success: boolean; 
 }
 
 /**
+ * Migrates map performance records to Supabase.
+ * Reads localStorage records, merges with existing cloud records additively,
+ * and upserts the merged results.
+ */
+async function migrateMapPerformance(userId: string): Promise<{ success: boolean; error?: string }> {
+  const localRecords = safeParseLocalStorage<Record<string, MapPerformanceRecord>>('xawars_mapPerformance');
+  if (!localRecords || Object.keys(localRecords).length === 0) {
+    return { success: true }; // Nothing to migrate
+  }
+
+  // Fetch existing cloud records for this user
+  const { data: cloudData, error: fetchError } = await supabase
+    .from('map_performance')
+    .select('operator_id, map_id, kills, deaths, matches')
+    .eq('user_id', userId);
+
+  if (fetchError) {
+    return { success: false, error: `Map performance fetch failed: ${fetchError.message}` };
+  }
+
+  // Build cloud records map
+  const cloudRecords: Record<string, MapPerformanceRecord> = {};
+  if (cloudData) {
+    for (const row of cloudData) {
+      const key = `${row.operator_id}_${row.map_id}`;
+      cloudRecords[key] = {
+        operatorId: row.operator_id,
+        mapId: row.map_id,
+        kills: row.kills ?? 0,
+        deaths: row.deaths ?? 0,
+        matches: row.matches ?? 0,
+      };
+    }
+  }
+
+  // Merge local + cloud using additive merge
+  const merged = mergeMapPerformanceRecords(localRecords, cloudRecords);
+
+  // Upsert merged records to Supabase
+  const rows = Object.values(merged).map((rec) => ({
+    user_id: userId,
+    operator_id: rec.operatorId,
+    map_id: rec.mapId,
+    kills: rec.kills,
+    deaths: rec.deaths,
+    matches: rec.matches,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error: upsertError } = await supabase
+    .from('map_performance')
+    .upsert(rows, { onConflict: 'user_id,operator_id,map_id' });
+
+  if (upsertError) {
+    return { success: false, error: `Map performance migration failed: ${upsertError.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Migrates map win/loss records to Supabase.
+ * Reads localStorage records, merges with existing cloud records additively
+ * (summing wins and losses), and upserts the merged results.
+ */
+async function migrateMapWinLoss(userId: string): Promise<{ success: boolean; error?: string }> {
+  const raw = typeof window !== 'undefined' ? localStorage.getItem('xawars_mapWinLoss') : null;
+  if (!raw) {
+    return { success: true }; // Nothing to migrate
+  }
+
+  const localRecords = deserializeMapWinLoss(raw);
+  if (Object.keys(localRecords).length === 0) {
+    return { success: true }; // Empty or invalid data
+  }
+
+  // Fetch existing cloud records for this user
+  const { data: cloudData, error: fetchError } = await supabase
+    .from('map_win_loss')
+    .select('map_id, wins, losses')
+    .eq('user_id', userId);
+
+  if (fetchError) {
+    return { success: false, error: `Map win/loss fetch failed: ${fetchError.message}` };
+  }
+
+  // Build cloud records map
+  const cloudRecords: Record<string, MapWinLossRecord> = {};
+  if (cloudData) {
+    for (const row of cloudData) {
+      cloudRecords[row.map_id] = {
+        mapId: row.map_id,
+        wins: row.wins ?? 0,
+        losses: row.losses ?? 0,
+      };
+    }
+  }
+
+  // Merge local + cloud using additive merge (sums wins and losses)
+  const merged = mergeMapWinLossRecords(localRecords, cloudRecords);
+
+  // Upsert merged records to Supabase using additive SQL pattern
+  const rows = Object.values(merged).map((rec) => ({
+    user_id: userId,
+    map_id: rec.mapId,
+    wins: rec.wins,
+    losses: rec.losses,
+    updated_at: new Date().toISOString(),
+  }));
+
+  // Use raw SQL-style upsert: ON CONFLICT sum wins/losses
+  // Since the merge already computed the final sums, we use a replace strategy here
+  const { error: upsertError } = await supabase
+    .from('map_win_loss')
+    .upsert(rows, { onConflict: 'user_id,map_id' });
+
+  if (upsertError) {
+    return { success: false, error: `Map win/loss migration failed: ${upsertError.message}` };
+  }
+
+  return { success: true };
+}
+
+/**
  * Migrates all detected localStorage data to Supabase for the given user.
  *
  * For each data category:
@@ -325,6 +456,26 @@ export async function migrateToCloud(userId: string): Promise<MigrationResult> {
     }
   } else if (contentResult.error) {
     errors.push(contentResult.error);
+  }
+
+  // Migrate map performance
+  const mapPerfResult = await migrateMapPerformance(userId);
+  if (mapPerfResult.success) {
+    if (safeParseLocalStorage('xawars_mapPerformance') !== null) {
+      migratedKeys.push('xawars_mapPerformance');
+    }
+  } else if (mapPerfResult.error) {
+    errors.push(mapPerfResult.error);
+  }
+
+  // Migrate map win/loss
+  const mapWinLossResult = await migrateMapWinLoss(userId);
+  if (mapWinLossResult.success) {
+    if (safeParseLocalStorage('xawars_mapWinLoss') !== null) {
+      migratedKeys.push('xawars_mapWinLoss');
+    }
+  } else if (mapWinLossResult.error) {
+    errors.push(mapWinLossResult.error);
   }
 
   return {

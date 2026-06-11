@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dices, RotateCcw, Volume2, VolumeX, UserRoundSearch, Flag, Swords } from 'lucide-react';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
@@ -11,12 +11,12 @@ import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { RollAnimation } from './components/RollAnimation';
 import { StatCounter } from './components/StatCounter';
+import { MapPickerModal } from './components/MapPickerModal';
+import { WinLossPrompt } from './components/WinLossPrompt';
+import { getMapById } from './data/maps';
 
 import { HistoryList, HistoryItem } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
-import { CreatorTools } from './components/CreatorTools';
-import { ThumbnailEditorModal } from './components/ThumbnailEditorModal';
-import { AnimationExporterModal } from './components/AnimationExporterModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
@@ -38,6 +38,11 @@ import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTarget
 import { Operator, Loadout, MatchType, Platform, Side } from './data/types';
 import { MasteryHeader } from './components/mastery';
 import { RivalryView } from './components/rivalry/RivalryView';
+import { initialStreakState, applyStreakAction, captureSnapshot, computeSessionDeltas } from './lib/session-logic';
+import { HotStreakIndicator } from './components/HotStreakIndicator';
+import { SessionSummaryModal } from './components/SessionSummaryModal';
+import { operators } from './data/operators';
+import type { SessionSnapshot, SessionDeltaData } from './types/database';
 
 export default function Home() {
   return (
@@ -51,7 +56,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
-  const { addDeployment, deleteDeployment, clearDeployments } = useData();
+  const { addDeployment, deleteDeployment, clearDeployments, updateMapPerformance, mapWinLossRecords, updateMapWinLoss } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -66,6 +71,34 @@ function HomeContent() {
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
+
+  // Map picker state: opens when user taps Add Kill / Add Death
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [pendingIncrementType, setPendingIncrementType] = useState<'kill' | 'death' | null>(null);
+  const lastMapIdRef = useRef<string | null>(null);
+
+  // Win/loss prompt state: shows after kill/death confirmed with a map
+  const [winLossPromptMapId, setWinLossPromptMapId] = useState<string | null>(null);
+
+  // Hot streak state — in-memory only, resets on page load (no persistence)
+  const [killStreak, setKillStreak] = useState(initialStreakState());
+
+  // Session snapshot — captures state at session start for delta computation
+  const sessionSnapshotRef = useRef<SessionSnapshot | null>(null);
+  const snapshotCapturedRef = useRef(false);
+
+  // Session summary modal state
+  const [sessionSummaryOpen, setSessionSummaryOpen] = useState(false);
+  const [sessionDeltaData, setSessionDeltaData] = useState<SessionDeltaData | null>(null);
+
+  // Build operator name lookup from full operators list
+  const operatorNamesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const op of operators) {
+      map[op.id] = op.name;
+    }
+    return map;
+  }, []);
 
   // AI Content Generator - persisted state
   const [apiKey, setApiKey] = usePersistedState<string>('xawars_openai_api_key', '');
@@ -88,9 +121,6 @@ function HomeContent() {
   const [pendingRole, setPendingRole] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetComplete, setTargetComplete] = useState(false);
-  const [isStreamerMode, setIsStreamerMode] = useState(false);
-  const [isThumbnailEditorOpen, setIsThumbnailEditorOpen] = useState(false);
-  const [isAnimationExporterOpen, setIsAnimationExporterOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
@@ -109,6 +139,58 @@ function HomeContent() {
       setShowCallsignPrompt(true);
     }
   }, [user, isGuest]);
+
+  // Capture session snapshot after hydration completes (persisted state is loaded)
+  // Uses a ref flag to prevent double-capture on visibility changes or HMR
+  useEffect(() => {
+    if (snapshotCapturedRef.current) return;
+    // After the first render cycle, persisted state is hydrated from localStorage.
+    // Capture snapshot with current values (kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords).
+    sessionSnapshotRef.current = captureSnapshot(
+      kills,
+      deaths,
+      operatorKills,
+      operatorDeaths,
+      mapWinLossRecords
+    );
+    snapshotCapturedRef.current = true;
+  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords]);
+
+  // Re-capture snapshot for new session (called after session end + modal close)
+  const recaptureSessionSnapshot = useCallback(() => {
+    snapshotCapturedRef.current = false;
+    sessionSnapshotRef.current = captureSnapshot(
+      kills,
+      deaths,
+      operatorKills,
+      operatorDeaths,
+      mapWinLossRecords
+    );
+    snapshotCapturedRef.current = true;
+  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords]);
+
+  // End Session handler — compute deltas and show session summary modal
+  const handleEndSession = useCallback(() => {
+    if (!sessionSnapshotRef.current) return;
+    const deltas = computeSessionDeltas(
+      sessionSnapshotRef.current,
+      kills,
+      deaths,
+      operatorKills,
+      operatorDeaths,
+      mapWinLossRecords,
+      operatorNamesMap
+    );
+    setSessionDeltaData(deltas);
+    setSessionSummaryOpen(true);
+  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords, operatorNamesMap]);
+
+  // Session modal close handler — reset snapshot to start new session
+  const handleSessionModalClose = useCallback(() => {
+    setSessionSummaryOpen(false);
+    setSessionDeltaData(null);
+    recaptureSessionSnapshot();
+  }, [recaptureSessionSnapshot]);
 
   // --- AI Content Generator Handlers ---
 
@@ -365,18 +447,96 @@ function HomeContent() {
     playReveal();
   };
 
-  const handleCopySummary = async () => {
-    const summary = `Xawars RNG Run
-Final Score: ${kills} Kills / ${deaths} Deaths
-MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
-
-    try {
-      await navigator.clipboard.writeText(summary);
-      alert("Summary copied to clipboard!");
-    } catch (err) {
-      console.error('Failed to copy summary: ', err);
+  const handleMapPickerSelect = useCallback((mapId: string, amount: number) => {
+    // If the user picked a different map than last time, increment match count for the previous map
+    if (lastMapIdRef.current && lastMapIdRef.current !== mapId && currentOperator) {
+      updateMapPerformance(currentOperator.id, lastMapIdRef.current, { matches: 1 });
     }
-  };
+    lastMapIdRef.current = mapId;
+
+    // Record the pending increment with map attribution and amount
+    if (pendingIncrementType === 'kill') {
+      performKillIncrement(mapId, amount);
+    } else if (pendingIncrementType === 'death') {
+      performDeathIncrement(mapId, amount);
+    }
+
+    setMapPickerOpen(false);
+    setPendingIncrementType(null);
+  }, [pendingIncrementType, currentOperator, updateMapPerformance]);
+
+  const handleMapPickerSkip = useCallback(() => {
+    // Record 1 increment without map attribution
+    if (pendingIncrementType === 'kill') {
+      performKillIncrement(null, 1);
+    } else if (pendingIncrementType === 'death') {
+      performDeathIncrement(null, 1);
+    }
+    setMapPickerOpen(false);
+    setPendingIncrementType(null);
+  }, [pendingIncrementType]);
+
+  const handleMapPickerClose = useCallback(() => {
+    // Cancel — don't record anything
+    setMapPickerOpen(false);
+    setPendingIncrementType(null);
+  }, []);
+
+  const performKillIncrement = useCallback((mapId: string | null, amount: number) => {
+    // Don't allow incrementing past the target
+    if (currentOperator && currentTargetKills > 0) {
+      const currentOpKills = operatorKills[currentOperator.id] || 0;
+      if (currentOpKills >= currentTargetKills) return;
+      // Cap the amount so it doesn't exceed the target
+      const maxAllowed = currentTargetKills - currentOpKills;
+      amount = Math.min(amount, maxAllowed);
+    }
+
+    setKills(k => k + amount);
+
+    if (currentOperator) {
+      setOperatorKills(prev => {
+        const currentOpKills = prev[currentOperator.id] || 0;
+        const newOpKills = currentOpKills + amount;
+        if (currentTargetKills > 0 && newOpKills >= currentTargetKills) {
+          setTargetComplete(true);
+        }
+        return { ...prev, [currentOperator.id]: newOpKills };
+      });
+
+      // Track map performance for kills
+      if (mapId) {
+        updateMapPerformance(currentOperator.id, mapId, { kills: amount });
+      }
+    }
+
+    // Update hot streak — apply 'kill' action for each kill in amount
+    setKillStreak(prev => {
+      let state = prev;
+      for (let i = 0; i < amount; i++) {
+        state = applyStreakAction(state, 'kill');
+      }
+      return state;
+    });
+  }, [currentOperator, currentTargetKills, operatorKills, setKills, setOperatorKills, setTargetComplete, updateMapPerformance]);
+
+  const performDeathIncrement = useCallback((mapId: string | null, amount: number) => {
+    setDeaths(d => d + amount);
+    if (currentOperator) {
+      setOperatorDeaths(prev => ({
+        ...prev,
+        [currentOperator.id]: (prev[currentOperator.id] || 0) + amount
+      }));
+
+      // Track map performance for deaths
+      if (mapId) {
+        updateMapPerformance(currentOperator.id, mapId, { deaths: amount });
+      }
+    }
+
+    // Update hot streak — death resets streak
+    setKillStreak(prev => applyStreakAction(prev, 'death'));
+  }, [currentOperator, setDeaths, setOperatorDeaths, updateMapPerformance]);
 
   const handleKillDecrement = () => {
     setKills(k => Math.max(0, k - 1));
@@ -388,6 +548,9 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
       // Notify mastery system of kill revert
     }
+
+    // Update hot streak — decrement streak count
+    setKillStreak(prev => applyStreakAction(prev, 'decrement'));
   };
 
   const handleDeathDecrement = () => {
@@ -405,7 +568,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
   return (
     <TacticalEntry>
-    <main className={`h-dvh text-zinc-100 font-sans selection:bg-yellow-500/30 relative overflow-hidden ${isStreamerMode ? 'bg-[#00b140]' : 'bg-black'}`}>
+    <main className={`h-dvh text-zinc-100 font-sans selection:bg-yellow-500/30 relative overflow-hidden bg-black`}>
 
       {/* Onboarding Welcome Modal */}
       <WelcomeModal onDeploy={handleRoll} />
@@ -420,47 +583,21 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
         <GuestModeBanner />
       )}
 
-      {/* Creator Tools Overlay */}
-      <CreatorTools
-        onCopySummary={handleCopySummary}
-        onToggleStreamerMode={() => setIsStreamerMode(!isStreamerMode)}
-        isStreamerMode={isStreamerMode}
-        onOpenThumbnailEditor={() => setIsThumbnailEditorOpen(true)}
-        onOpenAnimationExporter={() => setIsAnimationExporterOpen(true)}
-      />
-
-      <ThumbnailEditorModal
-        isOpen={isThumbnailEditorOpen}
-        onClose={() => setIsThumbnailEditorOpen(false)}
-        defaultOperator={currentOperator}
-        defaultLoadout={currentLoadout}
-        defaultMatchType={currentMatchType}
-        defaultKills={kills}
-        defaultDeaths={deaths}
-      />
-
-      <AnimationExporterModal 
-        isOpen={isAnimationExporterOpen}
-        onClose={() => setIsAnimationExporterOpen(false)}
-      />
-
-      {/* Global Wallpaper Layer - Hide in streamer mode */}
-      {!isStreamerMode && (
-        <div className="fixed inset-0 z-0">
-          {currentOperator && wallpaperPath && !wallpaperError ? (
-            <img
-              key={currentOperator.id}
-              src={wallpaperPath}
-              alt="Global Wallpaper"
-              className="w-full h-full object-cover opacity-20 blur-sm scale-110 animate-ken-burns"
-              onError={() => setWallpaperError(true)}
-            />
-          ) : (
-            // Fallback Gradient
-            <div className="w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-zinc-900 via-black to-black" />
-          )}
-        </div>
-      )}
+      {/* Global Wallpaper Layer */}
+      <div className="fixed inset-0 z-0">
+        {currentOperator && wallpaperPath && !wallpaperError ? (
+          <img
+            key={currentOperator.id}
+            src={wallpaperPath}
+            alt="Global Wallpaper"
+            className="w-full h-full object-cover opacity-20 blur-sm scale-110 animate-ken-burns"
+            onError={() => setWallpaperError(true)}
+          />
+        ) : (
+          // Fallback Gradient
+          <div className="w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-zinc-900 via-black to-black" />
+        )}
+      </div>
 
       {/* Modal Overlay */}
       <DeploymentModal
@@ -558,7 +695,7 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
             <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
               <span className="sr-only">Toggle Mute</span>
             </Button>
-            {!isStreamerMode && viewMode === 'roulette' && (
+            {viewMode === 'roulette' && (
               <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
                 Reset Run
               </Button>
@@ -615,31 +752,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               label="Kills"
               value={kills}
               onIncrement={() => {
-                // Don't allow incrementing past the target
-                if (currentOperator && currentTargetKills > 0) {
-                  const currentOpKills = operatorKills[currentOperator.id] || 0;
-                  if (currentOpKills >= currentTargetKills) return;
-                }
-
-                setKills(k => k + 1);
-
-                // Track operator kills
-                if (currentOperator) {
-                  setOperatorKills(prev => {
-                    const currentOpKills = prev[currentOperator.id] || 0;
-                    const newOpKills = currentOpKills + 1;
-                    // Check if target completed
-                    if (newOpKills === currentTargetKills) {
-                      setTargetComplete(true);
-                    }
-                    return {
-                      ...prev,
-                      [currentOperator.id]: newOpKills
-                    };
-                  });
-
-                  // Notify mastery system of kill increment
-                }
+                setPendingIncrementType('kill');
+                setMapPickerOpen(true);
               }}
               onDecrement={handleKillDecrement}
             />
@@ -647,17 +761,17 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               label="Deaths"
               value={deaths}
               onIncrement={() => {
-                setDeaths(d => d + 1);
-                if (currentOperator) {
-                  setOperatorDeaths(prev => ({
-                    ...prev,
-                    [currentOperator.id]: (prev[currentOperator.id] || 0) + 1
-                  }));
-                }
+                setPendingIncrementType('death');
+                setMapPickerOpen(true);
               }}
               onDecrement={handleDeathDecrement}
               variant="danger"
             />
+          </div>
+
+          {/* Hot Streak Banner — appears below stats when on a streak */}
+          <div className="shrink-0 mt-1">
+            <HotStreakIndicator streakCount={killStreak.count} isActive={killStreak.isHotStreak} />
           </div>
 
           {/* Selectors — compact stacked */}
@@ -686,6 +800,30 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
               onToggleRoles={(enabled) => setShowRoles(enabled)}
             />
           </div>
+
+          {/* Session actions — only when an operator is deployed */}
+          {currentOperator && (
+            <div className="shrink-0 mt-2 flex items-center justify-center gap-2">
+              {lastMapIdRef.current && (
+                <button
+                  type="button"
+                  onClick={() => setWinLossPromptMapId(lastMapIdRef.current)}
+                  aria-label="Record match result"
+                  className="min-h-[44px] px-4 py-2 text-xs font-medium text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black"
+                >
+                  🏁 Record Match
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleEndSession}
+                aria-label="End session and view summary"
+                className="min-h-[44px] px-4 py-2 text-xs font-medium text-zinc-300 border border-zinc-600/50 bg-zinc-800/50 rounded-lg hover:bg-zinc-700/50 hover:border-zinc-500/50 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-black"
+              >
+                📊 End Session
+              </button>
+            </div>
+          )}
 
           {/* Operator Card area */}
           <div id="operator-card-container" className="shrink-0 mt-3 relative px-2">
@@ -810,8 +948,8 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
 
           </div>
 
-        {/* Right Column - History - Hide in streamer mode and non-roulette tabs */}
-        {!isStreamerMode && viewMode === 'roulette' && (
+        {/* Right Column - History */}
+        {viewMode === 'roulette' && (
           <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-4 border-gradient-fade">
             <Button
               variant="outline"
@@ -874,6 +1012,41 @@ MVPs: ${history.slice(0, 3).map(h => h.operator.name).join(', ')}`;
           isOpen={isRivalryOpen}
           onClose={() => setIsRivalryOpen(false)}
         />
+
+        {/* Map Picker Modal — shown on kill/death increment */}
+        <MapPickerModal
+          isOpen={mapPickerOpen}
+          type={pendingIncrementType ?? 'kill'}
+          onConfirm={handleMapPickerSelect}
+          onSkip={handleMapPickerSkip}
+          onClose={handleMapPickerClose}
+        />
+
+        {/* Win/Loss Prompt — shown after kill/death confirmed with a map */}
+        {winLossPromptMapId && (
+          <WinLossPrompt
+            mapId={winLossPromptMapId}
+            mapName={getMapById(winLossPromptMapId)?.name ?? winLossPromptMapId}
+            onWin={() => {
+              updateMapWinLoss(winLossPromptMapId, 'win');
+              setWinLossPromptMapId(null);
+            }}
+            onLoss={() => {
+              updateMapWinLoss(winLossPromptMapId, 'loss');
+              setWinLossPromptMapId(null);
+            }}
+            onDismiss={() => setWinLossPromptMapId(null)}
+          />
+        )}
+
+        {/* Session Summary Modal — shown when user ends session */}
+        {sessionDeltaData && (
+          <SessionSummaryModal
+            isOpen={sessionSummaryOpen}
+            onClose={handleSessionModalClose}
+            sessionData={sessionDeltaData}
+          />
+        )}
 
         </div>
       </div>

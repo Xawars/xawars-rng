@@ -84,14 +84,29 @@ export function MasteryGrid({ history, operatorKills, operatorDeaths }: MasteryG
       filtered = filtered.filter(op => op.name.toLowerCase().includes(q));
     }
 
-    // Sort: played first (by deployments desc), then alphabetical
+    // Sort: best K/D first, then played operators before unplayed, then alphabetical
     filtered.sort((a, b) => {
-      const aDeploys = operatorDataMap.get(a.id)?.deployments ?? 0;
-      const bDeploys = operatorDataMap.get(b.id)?.deployments ?? 0;
+      const aStats = operatorDataMap.get(a.id);
+      const bStats = operatorDataMap.get(b.id);
+      const aDeploys = aStats?.deployments ?? 0;
+      const bDeploys = bStats?.deployments ?? 0;
+      const aKills = aStats?.kills ?? 0;
+      const bKills = bStats?.kills ?? 0;
+      const aDeaths = aStats?.deaths ?? 0;
+      const bDeaths = bStats?.deaths ?? 0;
 
+      // Played operators always come before unplayed
       if (aDeploys > 0 && bDeploys === 0) return -1;
       if (aDeploys === 0 && bDeploys > 0) return 1;
-      if (aDeploys !== bDeploys) return bDeploys - aDeploys;
+
+      // Both unplayed — alphabetical
+      if (aDeploys === 0 && bDeploys === 0) return a.name.localeCompare(b.name);
+
+      // Both played — sort by K/D descending
+      const aKd = aDeaths > 0 ? aKills / aDeaths : (aKills > 0 ? Infinity : 0);
+      const bKd = bDeaths > 0 ? bKills / bDeaths : (bKills > 0 ? Infinity : 0);
+
+      if (aKd !== bKd) return bKd - aKd;
       return a.name.localeCompare(b.name);
     });
 

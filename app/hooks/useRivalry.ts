@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
-import { toPng } from 'html-to-image';
+import { useState, useMemo, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { computeComparison } from '../lib/comparison-engine';
 import type { ComparisonResult, RivalryOperatorData } from '../lib/comparison-engine';
@@ -15,9 +14,6 @@ export interface UseRivalryReturn {
   setRightOperator: (op: Operator | null) => void;
   comparison: ComparisonResult | null;
   validationError: string | null;
-  isExporting: boolean;
-  exportImage: () => Promise<void>;
-  comparisonRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -34,16 +30,13 @@ function computeTier(deployments: number, kd: number | null): MasteryTier {
 
 /**
  * Custom hook that manages the operator rivalry comparison state.
- * Connects the pure ComparisonEngine to DataContext and handles image export.
+ * Connects the pure ComparisonEngine to DataContext.
  */
 export function useRivalry(prefilledOperator?: Operator | null): UseRivalryReturn {
   const { operatorStats } = useData();
 
   const [leftOperator, setLeftOperator] = useState<Operator | null>(prefilledOperator ?? null);
   const [rightOperator, setRightOperator] = useState<Operator | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-
-  const comparisonRef = useRef<HTMLDivElement | null>(null);
 
   // Same-operator validation
   const validationError = useMemo(() => {
@@ -110,37 +103,6 @@ export function useRivalry(prefilledOperator?: Operator | null): UseRivalryRetur
     return computeComparison(leftData, rightData);
   }, [leftOperator, rightOperator, buildOperatorData]);
 
-  // Image export using html-to-image
-  const exportImage = useCallback(async () => {
-    const node = comparisonRef.current;
-    if (!node) return;
-
-    setIsExporting(true);
-    try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        backgroundColor: '#09090b',
-      });
-
-      // Try native share API first, fallback to download
-      if (navigator.share) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], 'xawars-rivalry.png', { type: 'image/png' });
-        await navigator.share({ files: [file] });
-      } else {
-        const link = document.createElement('a');
-        link.download = 'xawars-rivalry.png';
-        link.href = dataUrl;
-        link.click();
-      }
-    } catch (err) {
-      console.error('Export failed', err);
-      throw err;
-    } finally {
-      setIsExporting(false);
-    }
-  }, []);
-
   return {
     leftOperator,
     rightOperator,
@@ -148,8 +110,5 @@ export function useRivalry(prefilledOperator?: Operator | null): UseRivalryRetur
     setRightOperator,
     comparison,
     validationError,
-    isExporting,
-    exportImage,
-    comparisonRef,
   };
 }
