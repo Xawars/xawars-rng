@@ -11,9 +11,6 @@ import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
 import { RollAnimation } from './components/RollAnimation';
 import { StatCounter } from './components/StatCounter';
-import { MapPickerModal } from './components/MapPickerModal';
-import { WinLossPrompt } from './components/WinLossPrompt';
-import { getMapById } from './data/maps';
 
 import { HistoryList, HistoryItem } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
@@ -23,7 +20,6 @@ import { OptionsRow } from './components/OptionsRow';
 import { SideSelector } from './components/SideSelector';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
-import { MapAdvisor } from './components/MapAdvisor';
 import { OperatorPickerModal } from './components/OperatorPickerModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContentGeneratorModal } from './components/ContentGeneratorModal';
@@ -56,7 +52,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
-  const { addDeployment, deleteDeployment, clearDeployments, updateMapPerformance, mapWinLossRecords, updateMapWinLoss } = useData();
+  const { addDeployment, deleteDeployment, clearDeployments } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -71,14 +67,6 @@ function HomeContent() {
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
-
-  // Map picker state: opens when user taps Add Kill / Add Death
-  const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [pendingIncrementType, setPendingIncrementType] = useState<'kill' | 'death' | null>(null);
-  const lastMapIdRef = useRef<string | null>(null);
-
-  // Win/loss prompt state: shows after kill/death confirmed with a map
-  const [winLossPromptMapId, setWinLossPromptMapId] = useState<string | null>(null);
 
   // Hot streak state — in-memory only, resets on page load (no persistence)
   const [killStreak, setKillStreak] = useState(initialStreakState());
@@ -123,7 +111,7 @@ function HomeContent() {
   const [targetComplete, setTargetComplete] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'roulette' | 'map-advisor' | 'content'>('roulette');
+  const [viewMode, setViewMode] = useState<'roulette' | 'content'>('roulette');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isRivalryOpen, setIsRivalryOpen] = useState(false);
 
@@ -145,16 +133,16 @@ function HomeContent() {
   useEffect(() => {
     if (snapshotCapturedRef.current) return;
     // After the first render cycle, persisted state is hydrated from localStorage.
-    // Capture snapshot with current values (kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords).
+    // Capture snapshot with current values (kills, deaths, operatorKills, operatorDeaths).
     sessionSnapshotRef.current = captureSnapshot(
       kills,
       deaths,
       operatorKills,
       operatorDeaths,
-      mapWinLossRecords
+      {}
     );
     snapshotCapturedRef.current = true;
-  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords]);
+  }, [kills, deaths, operatorKills, operatorDeaths]);
 
   // Re-capture snapshot for new session (called after session end + modal close)
   const recaptureSessionSnapshot = useCallback(() => {
@@ -164,10 +152,10 @@ function HomeContent() {
       deaths,
       operatorKills,
       operatorDeaths,
-      mapWinLossRecords
+      {}
     );
     snapshotCapturedRef.current = true;
-  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords]);
+  }, [kills, deaths, operatorKills, operatorDeaths]);
 
   // End Session handler — compute deltas and show session summary modal
   const handleEndSession = useCallback(() => {
@@ -178,12 +166,12 @@ function HomeContent() {
       deaths,
       operatorKills,
       operatorDeaths,
-      mapWinLossRecords,
+      {},
       operatorNamesMap
     );
     setSessionDeltaData(deltas);
     setSessionSummaryOpen(true);
-  }, [kills, deaths, operatorKills, operatorDeaths, mapWinLossRecords, operatorNamesMap]);
+  }, [kills, deaths, operatorKills, operatorDeaths, operatorNamesMap]);
 
   // Session modal close handler — reset snapshot to start new session
   const handleSessionModalClose = useCallback(() => {
@@ -447,51 +435,7 @@ function HomeContent() {
     playReveal();
   };
 
-  const handleMapPickerSelect = useCallback((mapId: string, amount: number) => {
-    // If the user picked a different map than last time, increment match count for the previous map
-    if (lastMapIdRef.current && lastMapIdRef.current !== mapId && currentOperator) {
-      updateMapPerformance(currentOperator.id, lastMapIdRef.current, { matches: 1 });
-    }
-    lastMapIdRef.current = mapId;
-
-    // Record the pending increment with map attribution and amount
-    if (pendingIncrementType === 'kill') {
-      performKillIncrement(mapId, amount);
-    } else if (pendingIncrementType === 'death') {
-      performDeathIncrement(mapId, amount);
-    }
-
-    setMapPickerOpen(false);
-    setPendingIncrementType(null);
-  }, [pendingIncrementType, currentOperator, updateMapPerformance]);
-
-  const handleMapPickerSkip = useCallback(() => {
-    // Record 1 increment without map attribution
-    if (pendingIncrementType === 'kill') {
-      performKillIncrement(null, 1);
-    } else if (pendingIncrementType === 'death') {
-      performDeathIncrement(null, 1);
-    }
-    setMapPickerOpen(false);
-    setPendingIncrementType(null);
-  }, [pendingIncrementType]);
-
-  const handleMapPickerClose = useCallback(() => {
-    // Cancel — don't record anything
-    setMapPickerOpen(false);
-    setPendingIncrementType(null);
-  }, []);
-
-  const performKillIncrement = useCallback((mapId: string | null, amount: number) => {
-    // Don't allow incrementing past the target
-    if (currentOperator && currentTargetKills > 0) {
-      const currentOpKills = operatorKills[currentOperator.id] || 0;
-      if (currentOpKills >= currentTargetKills) return;
-      // Cap the amount so it doesn't exceed the target
-      const maxAllowed = currentTargetKills - currentOpKills;
-      amount = Math.min(amount, maxAllowed);
-    }
-
+  const performKillIncrement = useCallback((amount: number) => {
     setKills(k => k + amount);
 
     if (currentOperator) {
@@ -503,11 +447,6 @@ function HomeContent() {
         }
         return { ...prev, [currentOperator.id]: newOpKills };
       });
-
-      // Track map performance for kills
-      if (mapId) {
-        updateMapPerformance(currentOperator.id, mapId, { kills: amount });
-      }
     }
 
     // Update hot streak — apply 'kill' action for each kill in amount
@@ -518,25 +457,20 @@ function HomeContent() {
       }
       return state;
     });
-  }, [currentOperator, currentTargetKills, operatorKills, setKills, setOperatorKills, setTargetComplete, updateMapPerformance]);
+  }, [currentOperator, currentTargetKills, setKills, setOperatorKills, setTargetComplete]);
 
-  const performDeathIncrement = useCallback((mapId: string | null, amount: number) => {
+  const performDeathIncrement = useCallback((amount: number) => {
     setDeaths(d => d + amount);
     if (currentOperator) {
       setOperatorDeaths(prev => ({
         ...prev,
         [currentOperator.id]: (prev[currentOperator.id] || 0) + amount
       }));
-
-      // Track map performance for deaths
-      if (mapId) {
-        updateMapPerformance(currentOperator.id, mapId, { deaths: amount });
-      }
     }
 
     // Update hot streak — death resets streak
     setKillStreak(prev => applyStreakAction(prev, 'death'));
-  }, [currentOperator, setDeaths, setOperatorDeaths, updateMapPerformance]);
+  }, [currentOperator, setDeaths, setOperatorDeaths]);
 
   const handleKillDecrement = () => {
     setKills(k => Math.max(0, k - 1));
@@ -670,16 +604,6 @@ function HomeContent() {
                 Roulette
               </button>
               <button
-                onClick={() => setViewMode('map-advisor')}
-                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                  viewMode === 'map-advisor'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Map Advisor
-              </button>
-              <button
                 onClick={() => setViewMode('content')}
                 className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
                   viewMode === 'content'
@@ -725,11 +649,7 @@ function HomeContent() {
         {/* Center Column - Main Content */}
         <div className="max-w-[560px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-y-auto overflow-x-hidden scrollbar-auto-hide">
 
-          {viewMode === 'map-advisor' ? (
-            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
-              <MapAdvisor />
-            </div>
-          ) : viewMode === 'content' ? (
+          {viewMode === 'content' ? (
             <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
               <ContentGeneratorModal
                 isOpen={true}
@@ -751,19 +671,13 @@ function HomeContent() {
             <StatCounter
               label="Kills"
               value={kills}
-              onIncrement={() => {
-                setPendingIncrementType('kill');
-                setMapPickerOpen(true);
-              }}
+              onIncrement={() => performKillIncrement(1)}
               onDecrement={handleKillDecrement}
             />
             <StatCounter
               label="Deaths"
               value={deaths}
-              onIncrement={() => {
-                setPendingIncrementType('death');
-                setMapPickerOpen(true);
-              }}
+              onIncrement={() => performDeathIncrement(1)}
               onDecrement={handleDeathDecrement}
               variant="danger"
             />
@@ -801,29 +715,7 @@ function HomeContent() {
             />
           </div>
 
-          {/* Session actions — only when an operator is deployed */}
-          {currentOperator && (
-            <div className="shrink-0 mt-2 flex items-center justify-center gap-2">
-              {lastMapIdRef.current && (
-                <button
-                  type="button"
-                  onClick={() => setWinLossPromptMapId(lastMapIdRef.current)}
-                  aria-label="Record match result"
-                  className="min-h-[44px] px-4 py-2 text-xs font-medium text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black"
-                >
-                  🏁 Record Match
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleEndSession}
-                aria-label="End session and view summary"
-                className="min-h-[44px] px-4 py-2 text-xs font-medium text-zinc-300 border border-zinc-600/50 bg-zinc-800/50 rounded-lg hover:bg-zinc-700/50 hover:border-zinc-500/50 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-black"
-              >
-                📊 End Session
-              </button>
-            </div>
-          )}
+
 
           {/* Operator Card area */}
           <div id="operator-card-container" className="shrink-0 mt-3 relative px-2">
@@ -1012,32 +904,6 @@ function HomeContent() {
           isOpen={isRivalryOpen}
           onClose={() => setIsRivalryOpen(false)}
         />
-
-        {/* Map Picker Modal — shown on kill/death increment */}
-        <MapPickerModal
-          isOpen={mapPickerOpen}
-          type={pendingIncrementType ?? 'kill'}
-          onConfirm={handleMapPickerSelect}
-          onSkip={handleMapPickerSkip}
-          onClose={handleMapPickerClose}
-        />
-
-        {/* Win/Loss Prompt — shown after kill/death confirmed with a map */}
-        {winLossPromptMapId && (
-          <WinLossPrompt
-            mapId={winLossPromptMapId}
-            mapName={getMapById(winLossPromptMapId)?.name ?? winLossPromptMapId}
-            onWin={() => {
-              updateMapWinLoss(winLossPromptMapId, 'win');
-              setWinLossPromptMapId(null);
-            }}
-            onLoss={() => {
-              updateMapWinLoss(winLossPromptMapId, 'loss');
-              setWinLossPromptMapId(null);
-            }}
-            onDismiss={() => setWinLossPromptMapId(null)}
-          />
-        )}
 
         {/* Session Summary Modal — shown when user ends session */}
         {sessionDeltaData && (

@@ -81,11 +81,33 @@ export function MasteryHeader({ history, operatorKills, operatorDeaths }: Master
     }
 
     filtered.sort((a, b) => {
-      const aDeploys = operatorDataMap.get(a.id)?.deployments ?? 0;
-      const bDeploys = operatorDataMap.get(b.id)?.deployments ?? 0;
-      if (aDeploys > 0 && bDeploys === 0) return -1;
-      if (aDeploys === 0 && bDeploys > 0) return 1;
-      if (aDeploys !== bDeploys) return bDeploys - aDeploys;
+      const aStats = operatorDataMap.get(a.id);
+      const bStats = operatorDataMap.get(b.id);
+      const aDeploys = aStats?.deployments ?? 0;
+      const bDeploys = bStats?.deployments ?? 0;
+      const aKills = aStats?.kills ?? 0;
+      const bKills = bStats?.kills ?? 0;
+      const aDeaths = aStats?.deaths ?? 0;
+      const bDeaths = bStats?.deaths ?? 0;
+
+      // Played operators always come before unplayed
+      const aPlayed = aDeploys > 0 || aKills > 0 || aDeaths > 0;
+      const bPlayed = bDeploys > 0 || bKills > 0 || bDeaths > 0;
+      if (aPlayed && !bPlayed) return -1;
+      if (!aPlayed && bPlayed) return 1;
+
+      // Both unplayed — alphabetical
+      if (!aPlayed && !bPlayed) return a.name.localeCompare(b.name);
+
+      // Both played — sort by K/D high to low
+      const aKd = aDeaths > 0 ? aKills / aDeaths : (aKills > 0 ? aKills : 0);
+      const bKd = bDeaths > 0 ? bKills / bDeaths : (bKills > 0 ? bKills : 0);
+
+      if (aKd !== bKd) return bKd - aKd;
+
+      // Tie-break: more kills first
+      if (aKills !== bKills) return bKills - aKills;
+
       return a.name.localeCompare(b.name);
     });
 
