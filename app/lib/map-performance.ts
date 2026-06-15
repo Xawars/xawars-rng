@@ -234,11 +234,8 @@ export function mergeMapPerformanceRecords(
 }
 
 /**
- * Filters the map pool to only active maps, sorted alphabetically by name.
- * MapData entries without an explicit `active` field default to true for backward compatibility.
+ * Returns all maps sorted alphabetically by name.
  */
 export function getActiveMaps(maps: MapData[]): MapData[] {
-  return maps
-    .filter((m) => m.active !== false)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return [...maps].sort((a, b) => a.name.localeCompare(b.name));
 }

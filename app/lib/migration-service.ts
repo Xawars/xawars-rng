@@ -10,16 +10,13 @@
  * - xawars_operatorDeaths: Record<string, number> (per-operator deaths)
  * - xawars_kills: number (total kills — informational, derived from operator kills)
  * - xawars_deaths: number (total deaths — informational, derived from operator deaths)
- * - content-idea-history: SavedContentIdea[] (saved content ideas)
  * - xawars_mapPerformance: Record<string, MapPerformanceRecord> (map performance)
  * - xawars_mapWinLoss: Record<string, MapWinLossRecord> (map win/loss)
  */
 
 import { supabase } from './supabase';
-import { serializeContentIdea } from './content-ideas';
 import { mergeMapPerformanceRecords } from './map-performance';
 import { mergeMapWinLossRecords, deserializeMapWinLoss } from './win-loss-logic';
-import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
 import type { MapPerformanceRecord, MapWinLossRecord } from '../types/database';
 
 /**
@@ -31,7 +28,6 @@ export const MIGRATABLE_KEYS = [
   'xawars_operatorDeaths',
   'xawars_kills',
   'xawars_deaths',
-  'content-idea-history',
   'xawars_mapPerformance',
   'xawars_mapWinLoss',
 ] as const;
@@ -244,43 +240,6 @@ async function migrateOperatorStats(userId: string): Promise<{ success: boolean;
 }
 
 /**
- * Migrates content ideas to Supabase.
- */
-async function migrateContentIdeas(userId: string): Promise<{ success: boolean; error?: string }> {
-  const ideas = safeParseLocalStorage<SavedContentIdea[]>('content-idea-history');
-  if (!ideas || ideas.length === 0) {
-    return { success: true }; // Nothing to migrate
-  }
-
-  // Limit to 50 most recent
-  const sorted = [...ideas].sort(
-    (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
-  ).slice(0, 50);
-
-  const rows = sorted.map((idea) => {
-    const serialized = serializeContentIdea(idea);
-    return {
-      id: serialized.id,
-      user_id: userId,
-      content_idea: serialized.content_idea,
-      story_hook: serialized.story_hook,
-      mission_directive: serialized.mission_directive,
-      title_variations: serialized.title_variations,
-      thumbnail_prompts: serialized.thumbnail_prompts,
-      saved_at: serialized.saved_at,
-    };
-  });
-
-  const { error } = await supabase.from('content_ideas').insert(rows);
-
-  if (error) {
-    return { success: false, error: `Content ideas migration failed: ${error.message}` };
-  }
-
-  return { success: true };
-}
-
-/**
  * Migrates map performance records to Supabase.
  * Reads localStorage records, merges with existing cloud records additively,
  * and upserts the merged results.
@@ -446,16 +405,6 @@ export async function migrateToCloud(userId: string): Promise<MigrationResult> {
     }
   } else if (operatorResult.error) {
     errors.push(operatorResult.error);
-  }
-
-  // Migrate content ideas
-  const contentResult = await migrateContentIdeas(userId);
-  if (contentResult.success) {
-    if (safeParseLocalStorage('content-idea-history') !== null) {
-      migratedKeys.push('content-idea-history');
-    }
-  } else if (contentResult.error) {
-    errors.push(contentResult.error);
   }
 
   // Migrate map performance

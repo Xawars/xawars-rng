@@ -16,12 +16,14 @@ interface OperatorDisplayProps {
   targetKills?: number;
   operatorKills?: number;
   role?: string;
+  onLoadoutChange?: (loadout: Loadout) => void;
 }
 
 /** Per-operator background image position overrides */
 const OPERATOR_BG_POSITION: Record<string, string> = {
   buck: 'center 20%',
   kali: 'center 25%',
+  gridlock: 'center 5%',
 };
 
 /** Map role names to CSS color values for border tinting */
@@ -55,7 +57,7 @@ function getMatchTypeTint(matchType?: string | null): string {
   }
 }
 
-export function OperatorDisplay({ operator, loadout, matchType, platform, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0, role }: OperatorDisplayProps) {
+export function OperatorDisplay({ operator, loadout, matchType, platform, isRolling, hideBg, hideLoadout, targetKills, operatorKills = 0, role, onLoadoutChange }: OperatorDisplayProps) {
   const [bgError, setBgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -265,9 +267,9 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
         {/* Loadout Grid */}
         {!hideLoadout && (
           <div className="p-3 grid gap-2">
-            <LoadoutItem label="Primary" value={loadout.primary} />
-            <LoadoutItem label="Secondary" value={loadout.secondary} />
-            <LoadoutItem label="Gadget" value={loadout.gadget} />
+            <LoadoutItem label="Primary" value={loadout.primary} options={operator.primaries} onCycle={onLoadoutChange ? (next) => onLoadoutChange({ ...loadout, primary: next }) : undefined} />
+            <LoadoutItem label="Secondary" value={loadout.secondary} options={operator.secondaries} onCycle={onLoadoutChange ? (next) => onLoadoutChange({ ...loadout, secondary: next }) : undefined} />
+            <LoadoutItem label="Gadget" value={loadout.gadget} options={operator.gadgets} onCycle={onLoadoutChange ? (next) => onLoadoutChange({ ...loadout, gadget: next }) : undefined} />
           </div>
         )}
       </div>
@@ -275,10 +277,29 @@ export function OperatorDisplay({ operator, loadout, matchType, platform, isRoll
   );
 }
 
-function LoadoutItem({ label, value }: { label: string; value: string }) {
+function LoadoutItem({ label, value, options, onCycle }: { label: string; value: string; options?: string[]; onCycle?: (next: string) => void }) {
+  const canCycle = onCycle && options && options.length > 1;
+
+  const handleClick = () => {
+    if (!canCycle) return;
+    const idx = options.indexOf(value);
+    const next = options[(idx + 1) % options.length];
+    onCycle(next);
+  };
+
   return (
-    <div className="flex flex-col border-l-3 border-yellow-500/50 pl-3 bg-black/40 py-1.5 rounded-r-lg backdrop-blur-md">
-      <span className="text-yellow-500/80 text-[9px] font-bold uppercase tracking-widest">{label}</span>
+    <div
+      onClick={handleClick}
+      className={`flex flex-col border-l-3 border-yellow-500/50 pl-3 bg-black/40 py-1.5 rounded-r-lg backdrop-blur-md ${canCycle ? 'cursor-pointer hover:bg-white/5 active:bg-white/10 transition-colors' : ''}`}
+      role={canCycle ? 'button' : undefined}
+      tabIndex={canCycle ? 0 : undefined}
+      onKeyDown={canCycle ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } } : undefined}
+      aria-label={canCycle ? `${label}: ${value}. Tap to change.` : undefined}
+    >
+      <span className="text-yellow-500/80 text-[9px] font-bold uppercase tracking-widest">
+        {label}
+        {canCycle && <span className="text-zinc-500 ml-1">⟳</span>}
+      </span>
       <span className="text-white text-base font-black tracking-tight drop-shadow-sm">{value}</span>
     </div>
   );
