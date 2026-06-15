@@ -149,8 +149,8 @@ export const bestLoadouts: Record<string, Loadout> = {
   },
   iana: {
     primary: "ARX200",
-    secondary: "Gonne-6",
-    gadget: "Stun Grenade",
+    secondary: "MK1 9MM",
+    gadget: "Impact EMP Grenade",
   },
   ace: {
     primary: "AK-12",
@@ -242,8 +242,8 @@ export const bestLoadouts: Record<string, Loadout> = {
   },
   rook: {
     primary: "MP5",
-    secondary: "LFP586",
-    gadget: "Impact Grenade",
+    secondary: "P9",
+    gadget: "Nitro Cell",
   },
   kapkan: {
     primary: "9x19VSN",

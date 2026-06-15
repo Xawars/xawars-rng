@@ -112,9 +112,9 @@ export const operators: Operator[] = [
     name: "Rook",
     side: "defender",
     primaries: ["MP5", "P90", "SG-CQB"],
-    secondaries: ["P9", "LFP586"],
-    gadgets: ["Proximity Alarm", "Impact Grenade"],
-    roles: ["Anchor", "Anti-Breach"]
+    secondaries: ["P9", "LFP586", "Reaper MK2"],
+    gadgets: ["Proximity Alarm", "Impact Grenade", "Nitro Cell"],
+    roles: ["Anchor"]
   },
 
   // --- PATHFINDERS (SPETSNAZ) ---
@@ -495,8 +495,8 @@ export const operators: Operator[] = [
     name: "Iana",
     side: "attacker",
     primaries: ["ARX200", "G36C"],
-    secondaries: ["Mk1 9mm", "Gonne-6"],
-    gadgets: ["Smoke Grenade", "Stun Grenade"],
+    secondaries: ["MK1 9MM", "GONNR-6"],
+    gadgets: ["Impact EMP Grenade", "Smoke Grenade"],
     roles: ["Entry Fragger", "Intel / Recon"]
   },
   {
