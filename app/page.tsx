@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dices, RotateCcw, Volume2, VolumeX, UserRoundSearch, Flag, Swords } from 'lucide-react';
-import { useAudioFeedback } from './hooks/useAudioFeedback';
+import { Dices, RotateCcw, UserRoundSearch, Flag, Swords } from 'lucide-react';
 import { usePersistedState } from './hooks/usePersistedState';
-import { useSoundContext } from './context/SoundContext';
 import { useAuth } from './context/AuthContext';
 import { Button } from './components/ui/Button';
 import { OperatorDisplay } from './components/OperatorDisplay';
@@ -17,19 +15,21 @@ import { DeploymentModal } from './components/DeploymentModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
+import { KillTargetSelector } from './components/KillTargetSelector';
+import { MapDeploySelector } from './components/MapDeploySelector';
 import { SideSelector } from './components/SideSelector';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
 import { OperatorPickerModal } from './components/OperatorPickerModal';
-import { ApiKeyModal } from './components/ApiKeyModal';
-import { ContentGeneratorModal } from './components/ContentGeneratorModal';
+import { MapAdvisorView } from './components/MapAdvisorView';
+import { StratsView } from './components/StratsView';
+import { MAPS } from './data/maps';
+import { STRATS } from './data/strats';
 import { ProtectedRoute, isGuestMode, clearGuestMode } from './components/auth/ProtectedRoute';
 import { TacticalEntry, WelcomeModal, FirstActionTooltip } from './components/onboarding';
 import { useOnboardingContext } from './components/onboarding/OnboardingProvider';
 import { AccountIndicator, SetCallsignModal, shouldPromptCallsign } from './components/account';
 import { useData } from './context/DataContext';
-import { generateContentIdea, validateApiKey, classifyApiError, type ContentIdea } from './lib/ai-client';
-import { DEFAULT_PROVIDER, type ProviderId } from './lib/ai-providers';
 import { getRandomOperator, generateLoadout, getRandomMatchType, getRandomTargetKills, getRandomRole, getRandomPlatform } from './data/operators';
 import { Operator, Loadout, MatchType, Platform, Side } from './data/types';
 import { MasteryHeader } from './components/mastery';
@@ -65,7 +65,9 @@ function HomeContent() {
   const [operatorDeaths, setOperatorDeaths] = usePersistedState<Record<string, number>>('xawars_operatorDeaths', {});
   const [currentRole, setCurrentRole] = usePersistedState<string>('xawars_currentRole', '');
   const [showRoles, setShowRoles] = usePersistedState<boolean>('xawars_showRoles', true);
+  const [userTargetKills, setUserTargetKills] = usePersistedState<number | null>('xawars_userTargetKills', null);
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
+  const [currentMapId, setCurrentMapId] = usePersistedState<string | null>('xawars_currentMapId', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Hot streak state — in-memory only, resets on page load (no persistence)
@@ -88,18 +90,6 @@ function HomeContent() {
     return map;
   }, []);
 
-  // AI Content Generator - persisted state
-  const [apiKey, setApiKey] = usePersistedState<string>('xawars_openai_api_key', '');
-  const [activeProvider, setActiveProvider] = usePersistedState<ProviderId>('xawars_ai_provider', DEFAULT_PROVIDER);
-
-  // AI Content Generator - transient state
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentIdea, setCurrentIdea] = useState<ContentIdea | null>(null);
-  const [generatorError, setGeneratorError] = useState<string | null>(null);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
   const [pendingLoadout, setPendingLoadout] = useState<Loadout | null>(null);
@@ -111,15 +101,12 @@ function HomeContent() {
   const [targetComplete, setTargetComplete] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'roulette' | 'content'>('roulette');
+  const [viewMode, setViewMode] = useState<'mastery' | 'map-advisor' | 'strats'>('mastery');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isRivalryOpen, setIsRivalryOpen] = useState(false);
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
-
-  const { playRoll, stopRoll, playReveal } = useAudioFeedback();
-  const { isMuted, toggleMute } = useSoundContext();
 
   // Check if existing user needs a callsign prompt
   useEffect(() => {
@@ -180,47 +167,6 @@ function HomeContent() {
     recaptureSessionSnapshot();
   }, [recaptureSessionSnapshot]);
 
-  // --- AI Content Generator Handlers ---
-
-  const handleGenerate = useCallback(async (key?: string) => {
-    const keyToUse = key || apiKey;
-    setIsGenerating(true);
-    setGeneratorError(null);
-
-    try {
-      const idea = await generateContentIdea({ provider: activeProvider, apiKey: keyToUse });
-      setCurrentIdea(idea);
-    } catch (err: unknown) {
-      const classified = classifyApiError(activeProvider, err);
-      setGeneratorError(classified.message);
-
-      // Auth errors: clear key and open ApiKeyModal with error
-      if (classified.type === 'auth') {
-        setApiKey('');
-        setIsGeneratorOpen(false);
-        setApiKeyError(classified.message);
-        setIsApiKeyModalOpen(true);
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [apiKey, activeProvider, setApiKey]);
-
-
-  const handleApiKeySave = useCallback((key: string, provider: ProviderId) => {
-    setApiKey(key);
-    setActiveProvider(provider);
-    setApiKeyError(null);
-    setIsApiKeyModalOpen(false);
-    setIsGeneratorOpen(true);
-  }, [setApiKey, setActiveProvider]);
-
-  const handleClearApiKey = useCallback(() => {
-    setApiKey('');
-    setIsGeneratorOpen(false);
-    setIsApiKeyModalOpen(true);
-  }, [setApiKey]);
-
   
 
   // Reset wallpaper error when operator changes
@@ -230,7 +176,6 @@ function HomeContent() {
 
   const handleRoll = () => {
     setIsRolling(true);
-    playRoll();
     setTargetComplete(false);
     markFirstRoll();
     // Simple timeout to simulate "rolling" feel
@@ -244,7 +189,7 @@ function HomeContent() {
       // Use selected platform or random
       const platform: Platform = currentPlatform || getRandomPlatform();
       
-      const targetKills = getRandomTargetKills();
+      const targetKills = userTargetKills ?? getRandomTargetKills();
       const role = showRoles ? getRandomRole(op) : '';
 
       // Set pending state instead of current
@@ -256,7 +201,6 @@ function HomeContent() {
       setPendingRole(role);
 
       setIsRolling(false);
-      stopRoll();
 
       // Open modal
       setIsModalOpen(true);
@@ -271,7 +215,7 @@ function HomeContent() {
     const loadout = generateLoadout(op);
     const matchType = currentMatchType || getRandomMatchType();
     const platform: Platform = currentPlatform || getRandomPlatform();
-    const targetKills = getRandomTargetKills();
+    const targetKills = userTargetKills ?? getRandomTargetKills();
     const role = showRoles ? getRandomRole(op) : '';
 
     setPendingOperator(op);
@@ -309,6 +253,9 @@ function HomeContent() {
     setKills(0);
     setDeaths(0);
 
+    // Reset kill streak for fresh deployment
+    setKillStreak(initialStreakState());
+
     // Add to history
     const deploymentId = crypto.randomUUID();
     const newHistoryItem: HistoryItem = {
@@ -337,9 +284,6 @@ function HomeContent() {
       deployedAt: new Date().toISOString(),
     };
     addDeployment(deploymentRecord);
-
-    // Play reveal sound
-    playReveal();
 
     // Close modal and clear pending
     setIsModalOpen(false);
@@ -383,24 +327,32 @@ function HomeContent() {
     setDeaths(0);
     setTargetComplete(false);
     setShowSurrenderConfirm(false);
+    setKillStreak(initialStreakState());
   };
 
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+
   const handleReset = () => {
-    if (confirm("Are you sure you want to reset the run? This will delete all deployment records.")) {
-      setKills(0);
-      setDeaths(0);
-      setCurrentOperator(null);
-      setCurrentLoadout(null);
-      setCurrentMatchType(null);
-      setCurrentPlatform(null);
-      setCurrentTargetKills(0);
-      setCurrentRole('');
-      setOperatorKills({});
-      setOperatorDeaths({});
-      setHistory([]);
-      setTargetComplete(false);
-      clearDeployments();
-    }
+    setResetModalOpen(true);
+  };
+
+  const confirmReset = () => {
+    setKills(0);
+    setDeaths(0);
+    setCurrentOperator(null);
+    setCurrentLoadout(null);
+    setCurrentMatchType(null);
+    setCurrentPlatform(null);
+    setCurrentTargetKills(0);
+    setCurrentRole('');
+    setCurrentMapId(null);
+    setOperatorKills({});
+    setOperatorDeaths({});
+    setHistory([]);
+    setTargetComplete(false);
+    setKillStreak(initialStreakState());
+    clearDeployments();
+    setResetModalOpen(false);
   };
 
   const handleFullReset = () => {
@@ -415,6 +367,7 @@ function HomeContent() {
     setOperatorDeaths({});
     setHistory([]);
     setTargetComplete(false);
+    setKillStreak(initialStreakState());
   }
 
   const restoreFromHistory = (item: HistoryItem) => {
@@ -432,7 +385,7 @@ function HomeContent() {
 
     setTargetComplete(false);
     setIsStatsModalOpen(false);
-    playReveal();
+    setKillStreak(initialStreakState());
   };
 
   const performKillIncrement = useCallback((amount: number) => {
@@ -554,32 +507,6 @@ function HomeContent() {
         currentSide={currentSide}
       />
 
-      {/* AI Content Generator */}
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => {
-          setIsApiKeyModalOpen(false);
-          setApiKeyError(null);
-        }}
-        onSave={handleApiKeySave}
-        error={apiKeyError}
-        initialProvider={activeProvider}
-      />
-      <ContentGeneratorModal
-        isOpen={isGeneratorOpen}
-        onClose={() => setIsGeneratorOpen(false)}
-        idea={currentIdea}
-        isGenerating={isGenerating}
-        error={generatorError}
-        onGenerate={() => handleGenerate()}
-        onClearApiKey={handleClearApiKey}
-        activeProvider={activeProvider}
-        onChangeProvider={() => {
-          setIsGeneratorOpen(false);
-          setIsApiKeyModalOpen(true);
-        }}
-      />
-
       
 
       {/* Grid layout container */}
@@ -591,39 +518,26 @@ function HomeContent() {
             <h1 className="text-xl font-black uppercase italic tracking-tighter text-yellow-500">
               Xawars <span className="text-white">RNG</span>
             </h1>
-            {/* View Mode Tabs */}
             <div className="flex bg-zinc-800 rounded-lg p-0.5">
-              <button
-                onClick={() => setViewMode('roulette')}
-                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                  viewMode === 'roulette'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Roulette
-              </button>
-              <button
-                onClick={() => setViewMode('content')}
-                className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                  viewMode === 'content'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Content
-              </button>
+              {(['mastery', 'map-advisor', 'strats'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setViewMode(tab)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                    viewMode === tab
+                      ? 'bg-yellow-500 text-black'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {tab === 'mastery' ? 'Operator Mastery' : tab === 'map-advisor' ? 'Map Advisor' : 'Strats'}
+                </button>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={toggleMute} icon={isMuted ? VolumeX : Volume2}>
-              <span className="sr-only">Toggle Mute</span>
+            <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
+              Reset Run
             </Button>
-            {viewMode === 'roulette' && (
-              <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
-                Reset Run
-              </Button>
-            )}
             <Button variant="ghost" size="sm" onClick={() => setIsRivalryOpen(true)} icon={Swords}>
               <span className="sr-only">Rivalry</span>
             </Button>
@@ -632,10 +546,10 @@ function HomeContent() {
         </header>
 
         {/* Content area — fills remaining height */}
+        {viewMode === 'mastery' ? (
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,560px)_1fr] gap-4 lg:gap-6 pt-4">
 
-          {/* Left Column - Mastery Header — only in roulette mode */}
-          {viewMode === 'roulette' && (
+          {/* Left Column - Mastery Header */}
             <div className="hidden lg:flex flex-col overflow-y-auto scrollbar-auto-hide pr-2 pt-1">
               <MasteryHeader
                 history={history}
@@ -643,29 +557,10 @@ function HomeContent() {
                 operatorDeaths={operatorDeaths}
               />
             </div>
-          )}
-          {viewMode !== 'roulette' && <div className="hidden lg:block" />}
 
         {/* Center Column - Main Content */}
         <div className="max-w-[560px] w-full mx-auto lg:mx-0 flex flex-col h-full overflow-y-auto overflow-x-hidden scrollbar-auto-hide">
 
-          {viewMode === 'content' ? (
-            <div className="flex-1 overflow-y-auto scrollbar-auto-hide">
-              <ContentGeneratorModal
-                isOpen={true}
-                onClose={() => setViewMode('roulette')}
-                idea={currentIdea}
-                isGenerating={isGenerating}
-                error={generatorError}
-                onGenerate={() => handleGenerate()}
-                onClearApiKey={handleClearApiKey}
-                activeProvider={activeProvider}
-                onChangeProvider={() => setIsApiKeyModalOpen(true)}
-                embedded
-              />
-            </div>
-          ) : (
-            <>
           {/* Stats Row */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <StatCounter
@@ -709,10 +604,21 @@ function HomeContent() {
 
           {/* Options Row */}
           <div className="shrink-0 mt-2">
+            <KillTargetSelector
+              value={userTargetKills}
+              onSelect={(v) => setUserTargetKills(v)}
+            />
+          </div>
+          <div className="shrink-0 mt-2">
             <OptionsRow
               showRoles={showRoles}
               onToggleRoles={(enabled) => setShowRoles(enabled)}
             />
+          </div>
+
+          {/* Map Selector — for strat linking */}
+          <div className="shrink-0 mt-2">
+            <MapDeploySelector currentMapId={currentMapId} onSelect={setCurrentMapId} />
           </div>
 
 
@@ -729,8 +635,59 @@ function HomeContent() {
               targetKills={currentTargetKills}
               operatorKills={currentOperator ? (operatorKills[currentOperator.id] || 0) : 0}
               role={showRoles ? currentRole : undefined}
+              onLoadoutChange={(newLoadout) => setCurrentLoadout(newLoadout)}
             />
           </div>
+
+          {/* Linked Strats — shows matching strats for current operator + map */}
+          {currentOperator && currentMapId && (() => {
+            const linked = STRATS.filter(s => s.operator === currentOperator.id && s.mapId === currentMapId);
+            if (linked.length === 0) return null;
+            return (
+              <div className="shrink-0 mt-2">
+                {linked.map(strat => (
+                  <div key={strat.id} className="border border-yellow-500/20 rounded-lg bg-yellow-500/5 p-3 mb-2 last:mb-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-yellow-500">Strat Available</span>
+                      <span className="text-[10px] font-bold uppercase bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">{strat.role}</span>
+                      <span className="text-[10px] font-bold uppercase bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">{strat.difficulty}</span>
+                    </div>
+                    <p className="text-sm font-bold text-white mb-1">{strat.title}</p>
+                    <p className="text-xs text-zinc-400 mb-2">{strat.winCondition}</p>
+                    <details className="group">
+                      <summary className="text-[10px] font-bold uppercase tracking-wider text-yellow-500/70 cursor-pointer hover:text-yellow-500 transition-colors">
+                        Show setup & details
+                      </summary>
+                      <div className="mt-2 space-y-2 text-xs text-zinc-400">
+                        {strat.setup.utility.length > 0 && (
+                          <div>
+                            <span className="font-bold text-zinc-300 block mb-0.5">Utility:</span>
+                            {strat.setup.utility.map((u, i) => (
+                              <p key={i}><span className="text-yellow-500">{u.gadget}:</span> {u.location}</p>
+                            ))}
+                          </div>
+                        )}
+                        {strat.setup.reinforcements.length > 0 && (
+                          <div>
+                            <span className="font-bold text-zinc-300 block mb-0.5">Reinforcements:</span>
+                            {strat.setup.reinforcements.map((r, i) => <p key={i}>• {r}</p>)}
+                          </div>
+                        )}
+                        {strat.roles.length > 0 && (
+                          <div>
+                            <span className="font-bold text-zinc-300 block mb-0.5">Team roles:</span>
+                            {strat.roles.map((r, i) => (
+                              <p key={i}><span className="text-white capitalize">{r.operator}</span> ({r.role}): {r.description}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Target Complete Overlay — shows on top of operator card */}
           {targetComplete && currentOperator && (
@@ -834,14 +791,9 @@ function HomeContent() {
             )}
           </div>
 
-          
-            </>
-          )}
-
           </div>
 
         {/* Right Column - History */}
-        {viewMode === 'roulette' && (
           <div className="hidden lg:block overflow-y-auto scrollbar-auto-hide pb-6 pl-4 border-gradient-fade">
             <Button
               variant="outline"
@@ -877,6 +829,16 @@ function HomeContent() {
                 }
               }}
             />
+          </div>
+
+        </div>
+        ) : viewMode === 'map-advisor' ? (
+          <div className="flex-1 min-h-0 flex pt-4">
+            <MapAdvisorView />
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 flex pt-4">
+            <StratsView />
           </div>
         )}
 
@@ -914,7 +876,44 @@ function HomeContent() {
           />
         )}
 
-        </div>
+        {/* Reset Run Confirmation Modal */}
+        {resetModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setResetModalOpen(false)}>
+            <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-lg font-black uppercase tracking-tight text-white">Reset Run</h3>
+              </div>
+              <div className="space-y-2 mb-5">
+                <p className="text-sm text-zinc-300">This will permanently delete:</p>
+                <ul className="text-sm text-zinc-400 space-y-1 pl-4">
+                  <li className="flex gap-2"><span className="text-red-400">•</span>All deployment history</li>
+                  <li className="flex gap-2"><span className="text-red-400">•</span>All kill & death stats</li>
+                  <li className="flex gap-2"><span className="text-red-400">•</span>Operator mastery progress</li>
+                  <li className="flex gap-2"><span className="text-red-400">•</span>Cloud data (if signed in)</li>
+                </ul>
+                <p className="text-xs text-red-400/80 font-medium mt-2">This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setResetModalOpen(false)}
+                  className="flex-1 py-2 px-3 text-sm font-bold rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReset}
+                  className="flex-1 py-2 px-3 text-sm font-bold rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors"
+                >
+                  Reset Everything
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
     </TacticalEntry>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 import { OnboardingProvider } from "./components/onboarding";
@@ -33,11 +32,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           <DataProvider>
-            <SoundProvider>
-              <OnboardingProvider>
-                {children}
-              </OnboardingProvider>
-            </SoundProvider>
+            <OnboardingProvider>
+              {children}
+            </OnboardingProvider>
           </DataProvider>
         </AuthProvider>
       </body>

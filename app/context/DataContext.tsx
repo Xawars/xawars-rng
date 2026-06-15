@@ -8,8 +8,6 @@ import { useAuth } from './AuthContext';
 import { upsertMapPerformance } from '../lib/map-performance';
 import { upsertMapWinLoss, serializeMapWinLoss, deserializeMapWinLoss } from '../lib/win-loss-logic';
 import type { DeploymentRecord, OperatorStatRecord, MapPerformanceRecord, MapWinLossRecord } from '../types/database';
-import type { SavedContentIdea } from '../hooks/useContentIdeaHistory';
-import type { ContentIdea } from '../lib/openai';
 
 /**
  * The full DataContext value exposed to consumers.
@@ -24,11 +22,6 @@ export interface DataContextValue {
   // Operator stats (stub — implemented in 5.5)
   operatorStats: Record<string, OperatorStatRecord>;
   updateOperatorStat: (operatorId: string, delta: { kills?: number; deaths?: number }) => void;
-
-  // Content ideas (stub — implemented in 5.7)
-  contentIdeas: SavedContentIdea[];
-  addContentIdea: (idea: ContentIdea) => void;
-  deleteContentIdea: (id: string) => void;
 
   // Map performance
   mapPerformanceRecords: Record<string, MapPerformanceRecord>;
@@ -282,7 +275,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [deploymentHistory, setDeploymentHistory] = useState<DeploymentRecord[]>([]);
   const [cloudOperatorStats, setCloudOperatorStats] = useState<Record<string, OperatorStatRecord> | null>(null);
   const [localStatsVersion, setLocalStatsVersion] = useState(0);
-  const [contentIdeas] = useState<SavedContentIdea[]>([]);
   const [migrationStatus, setMigrationStatus] = useState<'idle' | 'pending' | 'migrating' | 'complete' | 'failed'>('idle');
   const [mapPerformanceRecords, setMapPerformanceRecords] = useState<Record<string, MapPerformanceRecord>>({});
   const [mapWinLossRecords, setMapWinLossRecords] = useState<Record<string, MapWinLossRecord>>({});
@@ -532,14 +524,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isGuest]);
 
-  const addContentIdea = useCallback((_idea: ContentIdea) => {
-    // Stub — will be implemented in task 5.7
-  }, []);
-
-  const deleteContentIdea = useCallback((_id: string) => {
-    // Stub — will be implemented in task 5.7
-  }, []);
-
   const startMigration = useCallback(async () => {
     if (!user || isGuest) return;
 
@@ -572,9 +556,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     clearDeployments,
     operatorStats,
     updateOperatorStat,
-    contentIdeas,
-    addContentIdea,
-    deleteContentIdea,
     mapPerformanceRecords,
     updateMapPerformance,
     mapWinLossRecords,
