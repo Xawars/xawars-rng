@@ -63,6 +63,19 @@ export interface MapPerformanceRecord {
 }
 
 /**
+ * Per-operator per-map per-site performance record.
+ * Stored locally under `xawars_sitePerformance`.
+ */
+export interface SitePerformanceRecord {
+  operatorId: string;
+  mapId: string;
+  siteId: string;
+  kills: number;
+  deaths: number;
+  matches: number;
+}
+
+/**
  * Computed display stats for a single operator-map combination.
  * Only computed when the record meets the insight threshold (≥3 matches).
  */
