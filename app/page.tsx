@@ -17,6 +17,7 @@ import { PlatformSelector } from './components/PlatformSelector';
 import { OptionsRow } from './components/OptionsRow';
 import { KillTargetSelector } from './components/KillTargetSelector';
 import { MapDeploySelector } from './components/MapDeploySelector';
+import { SiteSelector } from './components/SiteSelector';
 import { SideSelector } from './components/SideSelector';
 import { OperatorCardModal } from './components/OperatorCardModal';
 import { OperatorStatsModal } from './components/OperatorStatsModal';
@@ -52,7 +53,7 @@ function HomeContent() {
   const router = useRouter();
   const { user, session, isGuest } = useAuth();
   const { markFirstRoll } = useOnboardingContext();
-  const { addDeployment, deleteDeployment, clearDeployments } = useData();
+  const { addDeployment, deleteDeployment, clearDeployments, updateMapPerformance, updateMapWinLoss, updateSitePerformance } = useData();
   const [showCallsignPrompt, setShowCallsignPrompt] = useState(() => false);
   const [kills, setKills] = usePersistedState('xawars_kills', 0);
   const [deaths, setDeaths] = usePersistedState('xawars_deaths', 0);
@@ -68,6 +69,7 @@ function HomeContent() {
   const [userTargetKills, setUserTargetKills] = usePersistedState<number | null>('xawars_userTargetKills', null);
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [currentMapId, setCurrentMapId] = usePersistedState<string | null>('xawars_currentMapId', null);
+  const [currentSiteId, setCurrentSiteId] = usePersistedState<string | null>('xawars_currentSiteId', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Hot streak state — in-memory only, resets on page load (no persistence)
@@ -107,6 +109,7 @@ function HomeContent() {
 
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
+  const [matchEndOpen, setMatchEndOpen] = useState(false);
 
   // Check if existing user needs a callsign prompt
   useEffect(() => {
@@ -346,6 +349,7 @@ function HomeContent() {
     setCurrentTargetKills(0);
     setCurrentRole('');
     setCurrentMapId(null);
+    setCurrentSiteId(null);
     setOperatorKills({});
     setOperatorDeaths({});
     setHistory([]);
@@ -400,6 +404,14 @@ function HomeContent() {
         }
         return { ...prev, [currentOperator.id]: newOpKills };
       });
+
+      // ponytail: attribute kills to selected map if one is active
+      if (currentMapId) {
+        updateMapPerformance(currentOperator.id, currentMapId, { kills: amount });
+        if (currentSiteId) {
+          updateSitePerformance(currentOperator.id, currentMapId, currentSiteId, { kills: amount });
+        }
+      }
     }
 
     // Update hot streak — apply 'kill' action for each kill in amount
@@ -410,7 +422,7 @@ function HomeContent() {
       }
       return state;
     });
-  }, [currentOperator, currentTargetKills, setKills, setOperatorKills, setTargetComplete]);
+  }, [currentOperator, currentTargetKills, currentMapId, currentSiteId, setKills, setOperatorKills, setTargetComplete, updateMapPerformance, updateSitePerformance]);
 
   const performDeathIncrement = useCallback((amount: number) => {
     setDeaths(d => d + amount);
@@ -419,11 +431,19 @@ function HomeContent() {
         ...prev,
         [currentOperator.id]: (prev[currentOperator.id] || 0) + amount
       }));
+
+      // ponytail: attribute deaths to selected map if one is active
+      if (currentMapId) {
+        updateMapPerformance(currentOperator.id, currentMapId, { deaths: amount });
+        if (currentSiteId) {
+          updateSitePerformance(currentOperator.id, currentMapId, currentSiteId, { deaths: amount });
+        }
+      }
     }
 
     // Update hot streak — death resets streak
     setKillStreak(prev => applyStreakAction(prev, 'death'));
-  }, [currentOperator, setDeaths, setOperatorDeaths]);
+  }, [currentOperator, currentMapId, currentSiteId, setDeaths, setOperatorDeaths, updateMapPerformance, updateSitePerformance]);
 
   const handleKillDecrement = () => {
     setKills(k => Math.max(0, k - 1));
@@ -448,6 +468,22 @@ function HomeContent() {
         [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
       }));
     }
+  };
+
+  // ponytail: record win/loss for the active map, bump match count, then clear map for next round
+  const handleMatchEnd = (outcome: 'win' | 'loss') => {
+    if (!currentMapId) return;
+    updateMapWinLoss(currentMapId, outcome);
+    if (currentOperator) {
+      updateMapPerformance(currentOperator.id, currentMapId, { matches: 1 });
+      if (currentSiteId) {
+        updateSitePerformance(currentOperator.id, currentMapId, currentSiteId, { matches: 1 });
+      }
+    }
+    setMatchEndOpen(false);
+    // Clear map + site so user picks the next one — operator stays deployed
+    setCurrentMapId(null);
+    setCurrentSiteId(null);
   };
 
   const wallpaperExt = currentOperator?.id === 'snake' ? 'png' : 'jpg';
@@ -618,8 +654,55 @@ function HomeContent() {
 
           {/* Map Selector — for strat linking */}
           <div className="shrink-0 mt-2">
-            <MapDeploySelector currentMapId={currentMapId} onSelect={setCurrentMapId} />
+            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); }} />
           </div>
+
+          {/* Site Selector — shows bomb sites when a map is selected */}
+          {currentMapId && (
+            <div className="shrink-0 mt-2">
+              <SiteSelector mapId={currentMapId} currentSiteId={currentSiteId} onSelect={setCurrentSiteId} />
+            </div>
+          )}
+
+          {/* Match End — record win/loss when map is active and operator deployed */}
+          {currentOperator && currentMapId && (
+            <div className="shrink-0 mt-2">
+              {matchEndOpen ? (
+                <div className="flex items-center gap-2 p-2 bg-zinc-900 border border-zinc-800 rounded-lg">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 shrink-0">Result?</span>
+                  <button
+                    type="button"
+                    onClick={() => handleMatchEnd('win')}
+                    className="flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/25 transition-colors"
+                  >
+                    Win
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMatchEnd('loss')}
+                    className="flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
+                  >
+                    Loss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMatchEndOpen(false)}
+                    className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMatchEndOpen(true)}
+                  className="w-full py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                >
+                  End Match
+                </button>
+              )}
+            </div>
+          )}
 
 
 

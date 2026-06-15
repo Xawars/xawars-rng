@@ -7,7 +7,7 @@ import { detectLocalStorageData, migrateToCloud, clearMigratedKeys } from '../li
 import { useAuth } from './AuthContext';
 import { upsertMapPerformance } from '../lib/map-performance';
 import { upsertMapWinLoss, serializeMapWinLoss, deserializeMapWinLoss } from '../lib/win-loss-logic';
-import type { DeploymentRecord, OperatorStatRecord, MapPerformanceRecord, MapWinLossRecord } from '../types/database';
+import type { DeploymentRecord, OperatorStatRecord, MapPerformanceRecord, MapWinLossRecord, SitePerformanceRecord } from '../types/database';
 
 /**
  * The full DataContext value exposed to consumers.
@@ -26,6 +26,10 @@ export interface DataContextValue {
   // Map performance
   mapPerformanceRecords: Record<string, MapPerformanceRecord>;
   updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => void;
+
+  // Site performance
+  sitePerformanceRecords: Record<string, SitePerformanceRecord>;
+  updateSitePerformance: (operatorId: string, mapId: string, siteId: string, delta: { kills?: number; deaths?: number; matches?: number }) => void;
 
   // Map win/loss
   mapWinLossRecords: Record<string, MapWinLossRecord>;
@@ -130,6 +134,36 @@ async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<stri
 }
 
 /**
+ * Fetch site performance records from Supabase for the given user.
+ */
+async function fetchSitePerformanceFromCloud(userId: string): Promise<Record<string, SitePerformanceRecord> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('site_performance')
+      .select('operator_id, map_id, site_id, kills, deaths, matches')
+      .eq('user_id', userId);
+
+    if (error || !data || data.length === 0) return null;
+
+    const records: Record<string, SitePerformanceRecord> = {};
+    for (const row of data) {
+      const key = `${row.operator_id}_${row.map_id}_${row.site_id}`;
+      records[key] = {
+        operatorId: row.operator_id,
+        mapId: row.map_id,
+        siteId: row.site_id,
+        kills: row.kills ?? 0,
+        deaths: row.deaths ?? 0,
+        matches: row.matches ?? 0,
+      };
+    }
+    return records;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch map win/loss records from Supabase for the given user.
  */
 async function fetchMapWinLossFromCloud(userId: string): Promise<Record<string, MapWinLossRecord> | null> {
@@ -219,6 +253,20 @@ function saveMapWinLossRecords(records: Record<string, MapWinLossRecord>): void 
   }
 }
 
+const SITE_PERFORMANCE_STORAGE_KEY = 'xawars_sitePerformance';
+
+function loadSitePerformanceRecords(): Record<string, SitePerformanceRecord> {
+  return safeParseLocalStorage<Record<string, SitePerformanceRecord>>(SITE_PERFORMANCE_STORAGE_KEY) ?? {};
+}
+
+function saveSitePerformanceRecords(records: Record<string, SitePerformanceRecord>): void {
+  try {
+    localStorage.setItem(SITE_PERFORMANCE_STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    console.warn('[XAWARS] Failed to save site performance records to localStorage');
+  }
+}
+
 /**
  * Derive operator stats from localStorage data (xawars_operatorKills, xawars_operatorDeaths, xawars_history).
  */
@@ -277,6 +325,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [localStatsVersion, setLocalStatsVersion] = useState(0);
   const [migrationStatus, setMigrationStatus] = useState<'idle' | 'pending' | 'migrating' | 'complete' | 'failed'>('idle');
   const [mapPerformanceRecords, setMapPerformanceRecords] = useState<Record<string, MapPerformanceRecord>>({});
+  const [sitePerformanceRecords, setSitePerformanceRecords] = useState<Record<string, SitePerformanceRecord>>({});
   const [mapWinLossRecords, setMapWinLossRecords] = useState<Record<string, MapWinLossRecord>>({});
 
   // Track whether we've already hydrated from cloud for this user session
@@ -310,6 +359,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const cloudMapPerf = await fetchMapPerformanceFromCloud(user.id);
       if (cloudMapPerf) {
         setMapPerformanceRecords(cloudMapPerf);
+      }
+
+      // Fetch site performance records from cloud
+      const cloudSitePerf = await fetchSitePerformanceFromCloud(user.id);
+      if (cloudSitePerf) {
+        setSitePerformanceRecords(cloudSitePerf);
       }
 
       // Fetch map win/loss records from cloud
@@ -369,6 +424,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [isGuest, user]);
 
+  // Load site performance records from localStorage
+  useEffect(() => {
+    if (isGuest || !user) {
+      const stored = loadSitePerformanceRecords();
+      setSitePerformanceRecords(stored);
+    }
+  }, [isGuest, user]);
+
   // Update map performance: additive upsert with persistence
   const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => {
     setMapPerformanceRecords(prev => {
@@ -388,6 +451,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
             user_id: user.id,
             operator_id: operatorId,
             map_id: mapId,
+            kills: delta.kills ?? 0,
+            deaths: delta.deaths ?? 0,
+            matches: delta.matches ?? 0,
+            updated_at: new Date().toISOString(),
+          },
+        });
+      }
+
+      return updated;
+    });
+  }, [user, isGuest]);
+
+  // Update site performance: additive upsert with persistence + cloud sync
+  const updateSitePerformance = useCallback((operatorId: string, mapId: string, siteId: string, delta: { kills?: number; deaths?: number; matches?: number }) => {
+    setSitePerformanceRecords(prev => {
+      const key = `${operatorId}_${mapId}_${siteId}`;
+      const existing = prev[key] ?? { operatorId, mapId, siteId, kills: 0, deaths: 0, matches: 0 };
+      const updated = {
+        ...prev,
+        [key]: {
+          ...existing,
+          kills: existing.kills + (delta.kills ?? 0),
+          deaths: existing.deaths + (delta.deaths ?? 0),
+          matches: existing.matches + (delta.matches ?? 0),
+        },
+      };
+
+      // Persist to localStorage for guests
+      if (isGuest || !user) {
+        saveSitePerformanceRecords(updated);
+      }
+
+      // For authenticated users, enqueue Supabase upsert
+      if (user && !isGuest) {
+        syncQueue.enqueue({
+          table: 'site_performance',
+          operation: 'upsert',
+          payload: {
+            user_id: user.id,
+            operator_id: operatorId,
+            map_id: mapId,
+            site_id: siteId,
             kills: delta.kills ?? 0,
             deaths: delta.deaths ?? 0,
             matches: delta.matches ?? 0,
@@ -558,6 +663,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateOperatorStat,
     mapPerformanceRecords,
     updateMapPerformance,
+    sitePerformanceRecords,
+    updateSitePerformance,
     mapWinLossRecords,
     updateMapWinLoss,
     migrationStatus,

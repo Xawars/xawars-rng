@@ -19,7 +19,7 @@ export function MapAdvisorView() {
         {/* Map Header */}
         <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 mb-4">
           {/* Placeholder image area */}
-          <div className="h-40 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+          <div className="h-40 bg-linear-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
             {selectedMap.image ? (
               <img src={selectedMap.image} alt={selectedMap.name} className="w-full h-full object-cover" />
             ) : (
@@ -61,7 +61,7 @@ export function MapAdvisorView() {
             className="text-left rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/50 hover:border-zinc-700 transition-all overflow-hidden group"
           >
             {/* Placeholder image */}
-            <div className="h-24 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+            <div className="h-24 bg-linear-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
               {map.image ? (
                 <img src={map.image} alt={map.name} className="w-full h-full object-cover" />
               ) : (
