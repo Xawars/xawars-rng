@@ -25,7 +25,9 @@ const OPERATOR_BG_POSITION: Record<string, string> = {
   kali: 'center 25%',
   gridlock: 'center 5%',
   iana: 'center 5%',
-  rook: 'center 5%'
+  rook: 'center 5%',
+  caveira: 'center 10%',
+  blitz: 'center 12%'
 };
 
 /** Map role names to CSS color values for border tinting */
