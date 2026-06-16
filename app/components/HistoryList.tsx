@@ -5,6 +5,14 @@ import { Trash2, ChevronRight } from 'lucide-react';
 import { Operator, Loadout, Platform } from '../data/types';
 import { OperatorIcon } from './OperatorIcon';
 
+export interface RoundEntry {
+  mapId: string;
+  siteId: string | null;
+  kills: number;
+  deaths: number;
+  outcome: 'win' | 'loss';
+}
+
 export interface HistoryItem {
   id: number;
   operator: Operator;
@@ -16,6 +24,7 @@ export interface HistoryItem {
   deploymentId?: string;
   mapId?: string | null;
   siteId?: string | null;
+  rounds?: RoundEntry[];
   surrendered?: boolean;
 }
 
