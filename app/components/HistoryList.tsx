@@ -14,6 +14,8 @@ export interface HistoryItem {
   targetKills?: number;
   role?: string;
   deploymentId?: string;
+  mapId?: string | null;
+  siteId?: string | null;
   surrendered?: boolean;
 }
 
@@ -33,7 +35,7 @@ function getStatus(
   operatorKills: Record<string, number>,
   currentOperatorId: string | null
 ): DeploymentStatus | null {
-  const kills = operatorKills[item.operator.id] || 0;
+  const kills = operatorKills[item.deploymentId || item.operator.id] || 0;
   const target = item.targetKills || 0;
 
   // If surrendered, show that status
@@ -120,11 +122,11 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
                     <>
                       <span className="text-[9px] text-zinc-600">•</span>
                       <span className={`text-[9px] font-bold ${
-                        (operatorKills[item.operator.id] || 0) >= item.targetKills
+                        (operatorKills[item.deploymentId || item.operator.id] || 0) >= item.targetKills
                           ? 'text-green-400'
                           : 'text-zinc-400'
                       }`}>
-                        {operatorKills[item.operator.id] || 0}/{item.targetKills}
+                        {operatorKills[item.deploymentId || item.operator.id] || 0}/{item.targetKills}
                       </span>
                     </>
                   )}

@@ -70,6 +70,7 @@ function HomeContent() {
   const [currentSide, setCurrentSide] = usePersistedState<Side | null>('xawars_currentSide', null);
   const [currentMapId, setCurrentMapId] = usePersistedState<string | null>('xawars_currentMapId', null);
   const [currentSiteId, setCurrentSiteId] = usePersistedState<string | null>('xawars_currentSiteId', null);
+  const [currentDeploymentId, setCurrentDeploymentId] = usePersistedState<string | null>('xawars_currentDeploymentId', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
 
   // Hot streak state — in-memory only, resets on page load (no persistence)
@@ -91,6 +92,27 @@ function HomeContent() {
     }
     return map;
   }, []);
+
+  // ponytail: aggregate deployment-keyed kills/deaths back to per-operator for stats views
+  const operatorKillsAggregate = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of history) {
+      const key = item.deploymentId || item.operator.id;
+      const kills = operatorKills[key] || 0;
+      map[item.operator.id] = (map[item.operator.id] || 0) + kills;
+    }
+    return map;
+  }, [history, operatorKills]);
+
+  const operatorDeathsAggregate = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of history) {
+      const key = item.deploymentId || item.operator.id;
+      const deaths = operatorDeaths[key] || 0;
+      map[item.operator.id] = (map[item.operator.id] || 0) + deaths;
+    }
+    return map;
+  }, [history, operatorDeaths]);
 
   // Transient state for the deployment flow
   const [pendingOperator, setPendingOperator] = useState<Operator | null>(null);
@@ -127,12 +149,12 @@ function HomeContent() {
     sessionSnapshotRef.current = captureSnapshot(
       kills,
       deaths,
-      operatorKills,
-      operatorDeaths,
+      operatorKillsAggregate,
+      operatorDeathsAggregate,
       {}
     );
     snapshotCapturedRef.current = true;
-  }, [kills, deaths, operatorKills, operatorDeaths]);
+  }, [kills, deaths, operatorKillsAggregate, operatorDeathsAggregate]);
 
   // Re-capture snapshot for new session (called after session end + modal close)
   const recaptureSessionSnapshot = useCallback(() => {
@@ -140,12 +162,12 @@ function HomeContent() {
     sessionSnapshotRef.current = captureSnapshot(
       kills,
       deaths,
-      operatorKills,
-      operatorDeaths,
+      operatorKillsAggregate,
+      operatorDeathsAggregate,
       {}
     );
     snapshotCapturedRef.current = true;
-  }, [kills, deaths, operatorKills, operatorDeaths]);
+  }, [kills, deaths, operatorKillsAggregate, operatorDeathsAggregate]);
 
   // End Session handler — compute deltas and show session summary modal
   const handleEndSession = useCallback(() => {
@@ -154,14 +176,14 @@ function HomeContent() {
       sessionSnapshotRef.current,
       kills,
       deaths,
-      operatorKills,
-      operatorDeaths,
+      operatorKillsAggregate,
+      operatorDeathsAggregate,
       {},
       operatorNamesMap
     );
     setSessionDeltaData(deltas);
     setSessionSummaryOpen(true);
-  }, [kills, deaths, operatorKills, operatorDeaths, operatorNamesMap]);
+  }, [kills, deaths, operatorKillsAggregate, operatorDeathsAggregate, operatorNamesMap]);
 
   // Session modal close handler — reset snapshot to start new session
   const handleSessionModalClose = useCallback(() => {
@@ -243,13 +265,15 @@ function HomeContent() {
     if (pendingRole) setCurrentRole(pendingRole);
 
     // Ensure the operator has a kill/death counter entry (reset to 0 for fresh deployment)
+    const deploymentId = crypto.randomUUID();
+    setCurrentDeploymentId(deploymentId);
     setOperatorKills(prev => ({
       ...prev,
-      [pendingOperator.id]: 0
+      [deploymentId]: 0
     }));
     setOperatorDeaths(prev => ({
       ...prev,
-      [pendingOperator.id]: 0
+      [deploymentId]: 0
     }));
 
     // Reset global kills/deaths to match the operator's counters
@@ -259,8 +283,11 @@ function HomeContent() {
     // Reset kill streak for fresh deployment
     setKillStreak(initialStreakState());
 
+    // Fresh deployment starts with no map/site — user picks per deployment
+    setCurrentMapId(null);
+    setCurrentSiteId(null);
+
     // Add to history
-    const deploymentId = crypto.randomUUID();
     const newHistoryItem: HistoryItem = {
       id: Date.now(),
       operator: pendingOperator,
@@ -270,6 +297,8 @@ function HomeContent() {
       targetKills: pendingTargetKills,
       role: pendingRole,
       deploymentId,
+      mapId: null,
+      siteId: null,
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 15));
 
@@ -314,7 +343,7 @@ function HomeContent() {
 
     // Mark the current deployment as surrendered in history
     setHistory(prev => prev.map(item => 
-      item.operator.id === currentOperator.id && !item.surrendered
+      item.deploymentId === currentDeploymentId && !item.surrendered
         ? { ...item, surrendered: true }
         : item
     ));
@@ -326,6 +355,7 @@ function HomeContent() {
     setCurrentPlatform(null);
     setCurrentTargetKills(0);
     setCurrentRole('');
+    setCurrentDeploymentId(null);
     setKills(0);
     setDeaths(0);
     setTargetComplete(false);
@@ -350,6 +380,7 @@ function HomeContent() {
     setCurrentRole('');
     setCurrentMapId(null);
     setCurrentSiteId(null);
+    setCurrentDeploymentId(null);
     setOperatorKills({});
     setOperatorDeaths({});
     setHistory([]);
@@ -367,6 +398,7 @@ function HomeContent() {
     setCurrentMatchType(null);
     setCurrentTargetKills(0);
     setCurrentRole('');
+    setCurrentDeploymentId(null);
     setOperatorKills({});
     setOperatorDeaths({});
     setHistory([]);
@@ -375,17 +407,22 @@ function HomeContent() {
   }
 
   const restoreFromHistory = (item: HistoryItem) => {
-    const opId = item.operator.id;
+    const deployId = item.deploymentId || item.operator.id;
     setCurrentOperator(item.operator);
     setCurrentLoadout(item.loadout);
+    setCurrentDeploymentId(deployId);
     if (item.matchType) setCurrentMatchType(item.matchType as MatchType);
     if (item.platform) setCurrentPlatform(item.platform);
     setCurrentTargetKills(item.targetKills || 0);
     if (item.role) setCurrentRole(item.role);
 
-    // Load per-operator kills and deaths
-    setKills(operatorKills[opId] || 0);
-    setDeaths(operatorDeaths[opId] || 0);
+    // Restore map/site context from the deployment (each deployment owns its own)
+    setCurrentMapId(item.mapId ?? null);
+    setCurrentSiteId(item.siteId ?? null);
+
+    // Load per-deployment kills and deaths
+    setKills(operatorKills[deployId] || 0);
+    setDeaths(operatorDeaths[deployId] || 0);
 
     setTargetComplete(false);
     setIsStatsModalOpen(false);
@@ -395,14 +432,14 @@ function HomeContent() {
   const performKillIncrement = useCallback((amount: number) => {
     setKills(k => k + amount);
 
-    if (currentOperator) {
+    if (currentOperator && currentDeploymentId) {
       setOperatorKills(prev => {
-        const currentOpKills = prev[currentOperator.id] || 0;
+        const currentOpKills = prev[currentDeploymentId] || 0;
         const newOpKills = currentOpKills + amount;
         if (currentTargetKills > 0 && newOpKills >= currentTargetKills) {
           setTargetComplete(true);
         }
-        return { ...prev, [currentOperator.id]: newOpKills };
+        return { ...prev, [currentDeploymentId]: newOpKills };
       });
 
       // ponytail: attribute kills to selected map if one is active
@@ -422,14 +459,14 @@ function HomeContent() {
       }
       return state;
     });
-  }, [currentOperator, currentTargetKills, currentMapId, currentSiteId, setKills, setOperatorKills, setTargetComplete, updateMapPerformance, updateSitePerformance]);
+  }, [currentOperator, currentDeploymentId, currentTargetKills, currentMapId, currentSiteId, setKills, setOperatorKills, setTargetComplete, updateMapPerformance, updateSitePerformance]);
 
   const performDeathIncrement = useCallback((amount: number) => {
     setDeaths(d => d + amount);
-    if (currentOperator) {
+    if (currentOperator && currentDeploymentId) {
       setOperatorDeaths(prev => ({
         ...prev,
-        [currentOperator.id]: (prev[currentOperator.id] || 0) + amount
+        [currentDeploymentId]: (prev[currentDeploymentId] || 0) + amount
       }));
 
       // ponytail: attribute deaths to selected map if one is active
@@ -443,14 +480,14 @@ function HomeContent() {
 
     // Update hot streak — death resets streak
     setKillStreak(prev => applyStreakAction(prev, 'death'));
-  }, [currentOperator, currentMapId, currentSiteId, setDeaths, setOperatorDeaths, updateMapPerformance, updateSitePerformance]);
+  }, [currentOperator, currentDeploymentId, currentMapId, currentSiteId, setDeaths, setOperatorDeaths, updateMapPerformance, updateSitePerformance]);
 
   const handleKillDecrement = () => {
     setKills(k => Math.max(0, k - 1));
-    if (currentOperator) {
+    if (currentOperator && currentDeploymentId) {
       setOperatorKills(prev => ({
         ...prev,
-        [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
+        [currentDeploymentId]: Math.max(0, (prev[currentDeploymentId] || 0) - 1)
       }));
 
       // Notify mastery system of kill revert
@@ -462,10 +499,10 @@ function HomeContent() {
 
   const handleDeathDecrement = () => {
     setDeaths(d => Math.max(0, d - 1));
-    if (currentOperator) {
+    if (currentOperator && currentDeploymentId) {
       setOperatorDeaths(prev => ({
         ...prev,
-        [currentOperator.id]: Math.max(0, (prev[currentOperator.id] || 0) - 1)
+        [currentDeploymentId]: Math.max(0, (prev[currentDeploymentId] || 0) - 1)
       }));
     }
   };
@@ -589,8 +626,8 @@ function HomeContent() {
             <div className="hidden lg:flex flex-col overflow-y-auto scrollbar-auto-hide pr-2 pt-1">
               <MasteryHeader
                 history={history}
-                operatorKills={operatorKills}
-                operatorDeaths={operatorDeaths}
+                operatorKills={operatorKillsAggregate}
+                operatorDeaths={operatorDeathsAggregate}
               />
             </div>
 
@@ -654,13 +691,13 @@ function HomeContent() {
 
           {/* Map Selector — for strat linking */}
           <div className="shrink-0 mt-2">
-            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); }} />
+            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: id, siteId: null } : h)); } }} />
           </div>
 
           {/* Site Selector — shows bomb sites when a map is selected */}
           {currentMapId && (
             <div className="shrink-0 mt-2">
-              <SiteSelector mapId={currentMapId} currentSiteId={currentSiteId} onSelect={setCurrentSiteId} />
+              <SiteSelector mapId={currentMapId} currentSiteId={currentSiteId} onSelect={(siteId) => { setCurrentSiteId(siteId); if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, siteId } : h)); } }} />
             </div>
           )}
 
@@ -716,7 +753,7 @@ function HomeContent() {
               platform={currentMatchType === 'Ranked' ? currentPlatform : undefined}
               isRolling={isRolling}
               targetKills={currentTargetKills}
-              operatorKills={currentOperator ? (operatorKills[currentOperator.id] || 0) : 0}
+              operatorKills={currentDeploymentId ? (operatorKills[currentDeploymentId] || 0) : 0}
               role={showRoles ? currentRole : undefined}
               onLoadoutChange={(newLoadout) => setCurrentLoadout(newLoadout)}
             />
@@ -937,8 +974,8 @@ function HomeContent() {
         {isStatsModalOpen && (
           <OperatorStatsModal
             history={history}
-            operatorKills={operatorKills}
-            operatorDeaths={operatorDeaths}
+            operatorKills={operatorKillsAggregate}
+            operatorDeaths={operatorDeathsAggregate}
             onSelect={restoreFromHistory}
             onClose={() => setIsStatsModalOpen(false)}
           />

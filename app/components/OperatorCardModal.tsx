@@ -49,8 +49,8 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
 
   if (!item) return null;
 
-  const kills = operatorKills[item.operator.id] || 0;
-  const deaths = operatorDeaths[item.operator.id] || 0;
+  const kills = operatorKills[item.deploymentId || item.operator.id] || 0;
+  const deaths = operatorDeaths[item.deploymentId || item.operator.id] || 0;
   const kd = deaths > 0 ? Math.round((kills / deaths) * 100) / 100 : null;
   const kdColor = kd !== null && kd >= 1 ? 'text-green-400' : 'text-red-400';
   const targetComplete = item.targetKills && item.targetKills > 0 && kills >= item.targetKills;
