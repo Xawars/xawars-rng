@@ -521,6 +521,10 @@ function HomeContent() {
     // Clear map + site so user picks the next one — operator stays deployed
     setCurrentMapId(null);
     setCurrentSiteId(null);
+    // ponytail: persist cleared map/site to the deployment's history entry so restoring doesn't resurrect stale state
+    if (currentDeploymentId) {
+      setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: null, siteId: null } : h));
+    }
   };
 
   const wallpaperExt = currentOperator?.id === 'snake' ? 'png' : 'jpg';

@@ -139,8 +139,8 @@ export function HistoryList({ history, operatorKills = {}, currentOperatorId = n
                   {item.operator.side === 'attacker' ? 'ATK' : 'DEF'}
                 </span>
 
-                {/* Select button — only for non-completed deployments */}
-                {status !== 'completed' && onSelectItem && (
+                {/* Select button — switch to any deployment */}
+                {onSelectItem && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
