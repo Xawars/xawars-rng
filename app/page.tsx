@@ -76,6 +76,10 @@ function HomeContent() {
   // Hot streak state — in-memory only, resets on page load (no persistence)
   const [killStreak, setKillStreak] = useState(initialStreakState());
 
+  // ponytail: track kills/deaths at round start to compute per-round deltas
+  const roundStartKillsRef = useRef(0);
+  const roundStartDeathsRef = useRef(0);
+
   // Session snapshot — captures state at session start for delta computation
   const sessionSnapshotRef = useRef<SessionSnapshot | null>(null);
   const snapshotCapturedRef = useRef(false);
@@ -279,6 +283,8 @@ function HomeContent() {
     // Reset global kills/deaths to match the operator's counters
     setKills(0);
     setDeaths(0);
+    roundStartKillsRef.current = 0;
+    roundStartDeathsRef.current = 0;
 
     // Reset kill streak for fresh deployment
     setKillStreak(initialStreakState());
@@ -423,6 +429,8 @@ function HomeContent() {
     // Load per-deployment kills and deaths
     setKills(operatorKills[deployId] || 0);
     setDeaths(operatorDeaths[deployId] || 0);
+    roundStartKillsRef.current = operatorKills[deployId] || 0;
+    roundStartDeathsRef.current = operatorDeaths[deployId] || 0;
 
     setTargetComplete(false);
     setIsStatsModalOpen(false);
@@ -518,13 +526,18 @@ function HomeContent() {
       }
     }
     setMatchEndOpen(false);
+
+    // ponytail: snapshot round data before clearing map/site
+    if (currentDeploymentId) {
+      const roundKills = kills - roundStartKillsRef.current;
+      const roundDeaths = deaths - roundStartDeathsRef.current;
+      const round = { mapId: currentMapId, siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome };
+      setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: null, siteId: null, rounds: [...(h.rounds || []), round] } : h));
+    }
+
     // Clear map + site so user picks the next one — operator stays deployed
     setCurrentMapId(null);
     setCurrentSiteId(null);
-    // ponytail: persist cleared map/site to the deployment's history entry so restoring doesn't resurrect stale state
-    if (currentDeploymentId) {
-      setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: null, siteId: null } : h));
-    }
   };
 
   const wallpaperExt = currentOperator?.id === 'snake' ? 'png' : 'jpg';
@@ -695,7 +708,7 @@ function HomeContent() {
 
           {/* Map Selector — for strat linking */}
           <div className="shrink-0 mt-2">
-            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: id, siteId: null } : h)); } }} />
+            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); roundStartKillsRef.current = kills; roundStartDeathsRef.current = deaths; if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: id, siteId: null } : h)); } }} />
           </div>
 
           {/* Site Selector — shows bomb sites when a map is selected */}
