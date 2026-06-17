@@ -124,7 +124,12 @@ async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<stri
         mapId: row.map_id,
         kills: row.kills ?? 0,
         deaths: row.deaths ?? 0,
+        rounds: row.rounds ?? 0,
+        roundsWon: row.rounds_won ?? 0,
+        roundsLost: row.rounds_lost ?? 0,
         matches: row.matches ?? 0,
+        matchesWon: row.matches_won ?? 0,
+        matchesLost: row.matches_lost ?? 0,
       };
     }
     return records;
