@@ -5,12 +5,20 @@ import { Trash2, ChevronRight } from 'lucide-react';
 import { Operator, Loadout, Platform } from '../data/types';
 import { OperatorIcon } from './OperatorIcon';
 
+// ponytail: RoundEntry no longer carries mapId — map lives on MatchEntry
 export interface RoundEntry {
-  mapId: string;
   siteId: string | null;
   kills: number;
   deaths: number;
   outcome: 'win' | 'loss';
+}
+
+export interface MatchEntry {
+  id: string;           // crypto.randomUUID()
+  mapId: string | null; // null for legacy matches
+  startedAt: string;    // ISO timestamp
+  endedAt?: string;     // ISO timestamp, absent while match is open
+  rounds: RoundEntry[];
 }
 
 export interface HistoryItem {
@@ -22,10 +30,22 @@ export interface HistoryItem {
   targetKills?: number;
   role?: string;
   deploymentId?: string;
+  // ponytail: old fields kept optional for backward compat during migration (removed in Task 5.1)
   mapId?: string | null;
   siteId?: string | null;
-  rounds?: RoundEntry[];
+  rounds?: LegacyRoundEntry[];
+  matches?: MatchEntry[];
   surrendered?: boolean;
+  schemaVersion?: number; // 2 = new match format
+}
+
+// ponytail: the old RoundEntry with mapId — only needed for migration
+export interface LegacyRoundEntry {
+  mapId: string;
+  siteId: string | null;
+  kills: number;
+  deaths: number;
+  outcome: 'win' | 'loss';
 }
 
 type DeploymentStatus = 'completed' | 'in-progress' | 'surrendered';

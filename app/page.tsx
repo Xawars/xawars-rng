@@ -10,7 +10,7 @@ import { OperatorDisplay } from './components/OperatorDisplay';
 import { RollAnimation } from './components/RollAnimation';
 import { StatCounter } from './components/StatCounter';
 
-import { HistoryList, HistoryItem } from './components/HistoryList';
+import { HistoryList, HistoryItem, MatchEntry } from './components/HistoryList';
 import { DeploymentModal } from './components/DeploymentModal';
 import { MatchTypeSelector } from './components/MatchTypeSelector';
 import { PlatformSelector } from './components/PlatformSelector';
@@ -40,6 +40,33 @@ import { HotStreakIndicator } from './components/HotStreakIndicator';
 import { SessionSummaryModal } from './components/SessionSummaryModal';
 import { operators } from './data/operators';
 import type { SessionSnapshot, SessionDeltaData } from './types/database';
+
+// ponytail: migrate old flat rounds[] into match-based schema on load
+export function migrateHistoryItem(item: HistoryItem): HistoryItem {
+  if (item.schemaVersion === 2 || item.matches) return { ...item, schemaVersion: 2 };
+
+  if (item.rounds && item.rounds.length > 0) {
+    const legacyMatch: MatchEntry = {
+      id: crypto.randomUUID(),
+      mapId: null,
+      startedAt: new Date(item.id).toISOString(),
+      endedAt: new Date(item.id).toISOString(),
+      rounds: item.rounds.map(r => ({
+        siteId: r.siteId,
+        kills: r.kills,
+        deaths: r.deaths,
+        outcome: r.outcome,
+        _legacyMapId: (r as any).mapId,
+      })) as any,
+    };
+    const { rounds, mapId, siteId, ...rest } = item as any;
+    return { ...rest, matches: [legacyMatch], schemaVersion: 2 };
+  }
+
+  // ponytail: no rounds and no matches — fresh deployment
+  const { rounds, mapId, siteId, ...rest } = item as any;
+  return { ...rest, matches: [], schemaVersion: 2 };
+}
 
 export default function Home() {
   return (
@@ -72,6 +99,10 @@ function HomeContent() {
   const [currentSiteId, setCurrentSiteId] = usePersistedState<string | null>('xawars_currentSiteId', null);
   const [currentDeploymentId, setCurrentDeploymentId] = usePersistedState<string | null>('xawars_currentDeploymentId', null);
   const [history, setHistory] = usePersistedState<HistoryItem[]>('xawars_history', []);
+
+  // ponytail: derive active match from current deployment's history item
+  const activeHistoryItem = history.find(h => h.deploymentId === currentDeploymentId);
+  const activeMatch = activeHistoryItem?.matches?.find(m => !m.endedAt) ?? null;
 
   // Hot streak state — in-memory only, resets on page load (no persistence)
   const [killStreak, setKillStreak] = useState(initialStreakState());
@@ -159,6 +190,13 @@ function HomeContent() {
     );
     snapshotCapturedRef.current = true;
   }, [kills, deaths, operatorKillsAggregate, operatorDeathsAggregate]);
+
+  // ponytail: runs once on mount — migrates old schema items to match-based format
+  useEffect(() => {
+    if (history.some(h => h.schemaVersion !== 2)) {
+      setHistory(history.map(migrateHistoryItem));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-capture snapshot for new session (called after session end + modal close)
   const recaptureSessionSnapshot = useCallback(() => {
@@ -303,8 +341,8 @@ function HomeContent() {
       targetKills: pendingTargetKills,
       role: pendingRole,
       deploymentId,
-      mapId: null,
-      siteId: null,
+      matches: [],
+      schemaVersion: 2,
     };
     setHistory(prev => [newHistoryItem, ...prev].slice(0, 15));
 
@@ -422,9 +460,10 @@ function HomeContent() {
     setCurrentTargetKills(item.targetKills || 0);
     if (item.role) setCurrentRole(item.role);
 
-    // Restore map/site context from the deployment (each deployment owns its own)
-    setCurrentMapId(item.mapId ?? null);
-    setCurrentSiteId(item.siteId ?? null);
+    // ponytail: derive map/site from the active match in the restored deployment
+    const openMatch = item.matches?.find(m => !m.endedAt);
+    setCurrentMapId(openMatch?.mapId ?? null);
+    setCurrentSiteId(null);
 
     // Load per-deployment kills and deaths
     setKills(operatorKills[deployId] || 0);
@@ -515,27 +554,54 @@ function HomeContent() {
     }
   };
 
-  // ponytail: record win/loss for the active map, bump match count, then clear map for next round
-  const handleMatchEnd = (outcome: 'win' | 'loss') => {
-    if (!currentMapId) return;
-    updateMapWinLoss(currentMapId, outcome);
-    if (currentOperator) {
-      updateMapPerformance(currentOperator.id, currentMapId, { matches: 1 });
-      if (currentSiteId) {
-        updateSitePerformance(currentOperator.id, currentMapId, currentSiteId, { matches: 1 });
-      }
+  // ponytail: end round — append to active match, update mastery, reset counters (Req 3.1–3.3, 8.1–8.3)
+  const handleRoundEnd = (outcome: 'win' | 'loss') => {
+    if (!activeMatch || !currentDeploymentId) return;
+    const roundKills = kills - roundStartKillsRef.current;
+    const roundDeaths = deaths - roundStartDeathsRef.current;
+
+    // Append round to active match's rounds array
+    setHistory(prev => prev.map(h =>
+      h.deploymentId === currentDeploymentId
+        ? { ...h, matches: (h.matches || []).map(m => m.id === activeMatch.id ? { ...m, rounds: [...m.rounds, { siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome }] } : m) }
+        : h
+    ));
+
+    // Mastery updates use match-level mapId (Req 8.1–8.3)
+    if (activeMatch.mapId) {
+      updateMapWinLoss(activeMatch.mapId, outcome);
     }
+
+    // Reset round-start refs for next round
+    roundStartKillsRef.current = kills;
+    roundStartDeathsRef.current = deaths;
+
+    // Clear site so user picks a new one for next round
+    setCurrentSiteId(null);
     setMatchEndOpen(false);
+  };
 
-    // ponytail: snapshot round data before clearing map/site
-    if (currentDeploymentId) {
-      const roundKills = kills - roundStartKillsRef.current;
-      const roundDeaths = deaths - roundStartDeathsRef.current;
-      const round = { mapId: currentMapId, siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome };
-      setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: null, siteId: null, rounds: [...(h.rounds || []), round] } : h));
+
+
+  // ponytail: close the active match — sets endedAt, clears map/site so player can start a new match
+  const handleEndMatch = () => {
+    if (!currentDeploymentId || !activeMatch) return;
+    const now = new Date().toISOString();
+    setHistory(prev => prev.map(h => {
+      if (h.deploymentId !== currentDeploymentId) return h;
+      const matches = (h.matches || []).map(m => !m.endedAt ? { ...m, endedAt: now } : m);
+      return { ...h, matches };
+    }));
+
+    // ponytail: increment match counter once per match, and once per distinct site
+    if (currentOperator && activeMatch.mapId) {
+      updateMapPerformance(currentOperator.id, activeMatch.mapId, { matches: 1 });
+      const sites = new Set(activeMatch.rounds.map(r => r.siteId).filter(Boolean));
+      sites.forEach(siteId => {
+        updateSitePerformance(currentOperator.id, activeMatch.mapId!, siteId!, { matches: 1 });
+      });
     }
 
-    // Clear map + site so user picks the next one — operator stays deployed
     setCurrentMapId(null);
     setCurrentSiteId(null);
   };
@@ -708,32 +774,59 @@ function HomeContent() {
 
           {/* Map Selector — for strat linking */}
           <div className="shrink-0 mt-2">
-            <MapDeploySelector currentMapId={currentMapId} onSelect={(id) => { setCurrentMapId(id); setCurrentSiteId(null); roundStartKillsRef.current = kills; roundStartDeathsRef.current = deaths; if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, mapId: id, siteId: null } : h)); } }} />
+            <MapDeploySelector
+              currentMapId={currentMapId}
+              isLocked={!!activeMatch}
+              onCorrect={(mapId) => {
+                // ponytail: map correction — updates in-place, no new match created (Req 5.1, 5.2)
+                setCurrentMapId(mapId);
+                if (currentDeploymentId) {
+                  setHistory(prev => prev.map(h => {
+                    if (h.deploymentId !== currentDeploymentId) return h;
+                    const matches = (h.matches || []).map(m => !m.endedAt ? { ...m, mapId } : m);
+                    return { ...h, matches };
+                  }));
+                }
+              }}
+              onSelect={(id) => {
+                if (activeMatch) return; /* ponytail: map locked during active match (Req 2.2) */
+                if (!id) { setCurrentMapId(null); setCurrentSiteId(null); return; }
+                /* ponytail: map selection creates a match when deployed with no open match (Req 2.1) */
+                if (currentDeploymentId && !activeMatch) {
+                  const newMatch: MatchEntry = { id: crypto.randomUUID(), mapId: id, startedAt: new Date().toISOString(), rounds: [] };
+                  setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, matches: [...(h.matches || []), newMatch] } : h));
+                }
+                setCurrentMapId(id);
+                setCurrentSiteId(null);
+                roundStartKillsRef.current = kills;
+                roundStartDeathsRef.current = deaths;
+              }}
+            />
           </div>
 
           {/* Site Selector — shows bomb sites when a map is selected */}
           {currentMapId && (
             <div className="shrink-0 mt-2">
-              <SiteSelector mapId={currentMapId} currentSiteId={currentSiteId} onSelect={(siteId) => { setCurrentSiteId(siteId); if (currentDeploymentId) { setHistory(prev => prev.map(h => h.deploymentId === currentDeploymentId ? { ...h, siteId } : h)); } }} />
+              <SiteSelector mapId={currentMapId} currentSiteId={currentSiteId} onSelect={(siteId) => { setCurrentSiteId(siteId); }} />
             </div>
           )}
 
-          {/* Match End — record win/loss when map is active and operator deployed */}
-          {currentOperator && currentMapId && (
-            <div className="shrink-0 mt-2">
+          {/* Round End + End Match — only when a match is active */}
+          {currentOperator && !!activeMatch && (
+            <div className="shrink-0 mt-2 flex flex-col gap-2">
               {matchEndOpen ? (
                 <div className="flex items-center gap-2 p-2 bg-zinc-900 border border-zinc-800 rounded-lg">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 shrink-0">Result?</span>
                   <button
                     type="button"
-                    onClick={() => handleMatchEnd('win')}
+                    onClick={() => handleRoundEnd('win')}
                     className="flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/25 transition-colors"
                   >
                     Win
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleMatchEnd('loss')}
+                    onClick={() => handleRoundEnd('loss')}
                     className="flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
                   >
                     Loss
@@ -752,9 +845,16 @@ function HomeContent() {
                   onClick={() => setMatchEndOpen(true)}
                   className="w-full py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
                 >
-                  End Match
+                  End Round
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => handleEndMatch()}
+                className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
+              >
+                End Match
+              </button>
             </div>
           )}
 
