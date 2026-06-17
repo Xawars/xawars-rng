@@ -253,7 +253,7 @@ async function migrateMapPerformance(userId: string): Promise<{ success: boolean
   // Fetch existing cloud records for this user
   const { data: cloudData, error: fetchError } = await supabase
     .from('map_performance')
-    .select('operator_id, map_id, kills, deaths, matches')
+    .select('operator_id, map_id, kills, deaths, rounds, rounds_won, rounds_lost, matches, matches_won, matches_lost')
     .eq('user_id', userId);
 
   if (fetchError) {
@@ -270,7 +270,12 @@ async function migrateMapPerformance(userId: string): Promise<{ success: boolean
         mapId: row.map_id,
         kills: row.kills ?? 0,
         deaths: row.deaths ?? 0,
+        rounds: row.rounds ?? 0,
+        roundsWon: row.rounds_won ?? 0,
+        roundsLost: row.rounds_lost ?? 0,
         matches: row.matches ?? 0,
+        matchesWon: row.matches_won ?? 0,
+        matchesLost: row.matches_lost ?? 0,
       };
     }
   }
@@ -285,7 +290,12 @@ async function migrateMapPerformance(userId: string): Promise<{ success: boolean
     map_id: rec.mapId,
     kills: rec.kills,
     deaths: rec.deaths,
+    rounds: rec.rounds,
+    rounds_won: rec.roundsWon,
+    rounds_lost: rec.roundsLost,
     matches: rec.matches,
+    matches_won: rec.matchesWon,
+    matches_lost: rec.matchesLost,
     updated_at: new Date().toISOString(),
   }));
 
