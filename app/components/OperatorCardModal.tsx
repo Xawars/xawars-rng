@@ -140,20 +140,33 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
             />
           </div>
 
-          {/* Round-by-round timeline */}
-          {item.rounds && item.rounds.length > 0 && (
+          {/* ponytail: rounds grouped by match — legacy matches show per-round map inline */}
+          {item.matches && item.matches.length > 0 && (
             <div className="px-4 pb-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Round Timeline</h4>
-              <div className="flex flex-col gap-1">
-                {item.rounds.map((round, i) => {
-                  const mapName = MAPS.find(m => m.id === round.mapId)?.name || round.mapId;
-                  const site = round.siteId ? MAPS.find(m => m.id === round.mapId)?.sites.find(s => s.id === round.siteId)?.name : null;
-                  const isWin = round.outcome === 'win';
+              <div className="flex flex-col gap-2">
+                {item.matches.map((match) => {
+                  const matchMapName = match.mapId ? (MAPS.find(m => m.id === match.mapId)?.name || match.mapId) : null;
                   return (
-                    <div key={i} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] border ${isWin ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                      <span className={`font-black text-[10px] w-4 ${isWin ? 'text-green-400' : 'text-red-400'}`}>{isWin ? 'W' : 'L'}</span>
-                      <span className="text-zinc-300 font-medium truncate">{mapName}{site ? ` · ${site}` : ''}</span>
-                      <span className="ml-auto text-zinc-400 font-mono text-[10px]">{round.kills}K / {round.deaths}D</span>
+                    <div key={match.id} className="flex flex-col gap-1">
+                      {matchMapName && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">{matchMapName}</span>
+                      )}
+                      {match.rounds.map((round, i) => {
+                        // ponytail: legacy matches (mapId null) show per-round _legacyMapId inline
+                        const legacyMapId = !match.mapId ? (round as any)._legacyMapId : null;
+                        const roundMapName = legacyMapId ? (MAPS.find(m => m.id === legacyMapId)?.name || legacyMapId) : null;
+                        const siteMapId = match.mapId || legacyMapId;
+                        const site = round.siteId && siteMapId ? MAPS.find(m => m.id === siteMapId)?.sites.find(s => s.id === round.siteId)?.name : null;
+                        const isWin = round.outcome === 'win';
+                        return (
+                          <div key={i} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] border ${isWin ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                            <span className={`font-black text-[10px] w-4 ${isWin ? 'text-green-400' : 'text-red-400'}`}>{isWin ? 'W' : 'L'}</span>
+                            <span className="text-zinc-300 font-medium truncate">{roundMapName ? `${roundMapName}` : ''}{site ? `${roundMapName ? ' · ' : ''}${site}` : ''}</span>
+                            <span className="ml-auto text-zinc-400 font-mono text-[10px]">{round.kills}K / {round.deaths}D</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
