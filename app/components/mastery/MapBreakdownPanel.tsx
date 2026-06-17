@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Map } from 'lucide-react';
 import { getMapBreakdown } from '../../lib/map-performance';
-import { computeWinRate, hasLimitedData, getTotalOutcomes } from '../../lib/win-loss-logic';
+import { computeWinRate, getTotalOutcomes } from '../../lib/win-loss-logic';
 import { useData } from '../../context/DataContext';
 import { MAPS } from '../../data/maps';
 import type { MapPerformanceRecord } from '../../types/database';
@@ -49,10 +49,21 @@ export function MapBreakdownPanel({ operatorId, records }: MapBreakdownPanelProp
       </h3>
       <div className="space-y-1.5">
         {breakdown.map((entry) => {
+          // ponytail: derive win rates from the record itself — rounds and matches
+          const record = Object.values(records).find(r => r.operatorId === operatorId && r.mapId === entry.mapId);
+          const rounds = record?.rounds ?? 0;
+          const roundsWon = record?.roundsWon ?? 0;
+          const roundsLost = record?.roundsLost ?? 0;
+          const matchesPlayed = record?.matches ?? 0;
+          const matchesWon = record?.matchesWon ?? 0;
+          const matchesLost = record?.matchesLost ?? 0;
+
+          // Fall back to legacy mapWinLoss for round win rate if new fields are 0
           const winLossRecord = mapWinLossRecords[entry.mapId];
-          const totalOutcomes = winLossRecord ? getTotalOutcomes(winLossRecord) : 0;
-          const winRate = winLossRecord ? computeWinRate(winLossRecord) : null;
-          const limitedData = winLossRecord ? hasLimitedData(winLossRecord) : false;
+          const totalRoundOutcomes = rounds > 0 ? rounds : (winLossRecord ? getTotalOutcomes(winLossRecord) : 0);
+          const roundWinRate = rounds > 0
+            ? (roundsWon + roundsLost > 0 ? Math.round((roundsWon / (roundsWon + roundsLost)) * 100) : null)
+            : (winLossRecord ? computeWinRate(winLossRecord) : null);
 
           return (
             <div
@@ -69,7 +80,7 @@ export function MapBreakdownPanel({ operatorId, records }: MapBreakdownPanelProp
                 </p>
                 {entry.meetsThreshold ? (
                   <p className="text-[10px] text-zinc-500">
-                    {entry.kills}K / {entry.deaths}D &middot; {entry.matches} matches
+                    {entry.kills}K / {entry.deaths}D &middot; {totalRoundOutcomes} rounds &middot; {matchesPlayed} matches
                   </p>
                 ) : (
                   <p className="text-[10px] text-zinc-500">
@@ -78,14 +89,21 @@ export function MapBreakdownPanel({ operatorId, records }: MapBreakdownPanelProp
                 )}
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-3">
-                {totalOutcomes > 0 && winRate !== null && (
+                {matchesPlayed > 0 && (
                   <div className="text-right">
-                    <p className={`text-xs font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                      {winRate}%
+                    <p className={`text-[10px] tabular-nums ${matchesWon >= matchesLost ? 'text-green-400' : 'text-red-400'}`}>
+                      {matchesWon}W {matchesLost}L
                     </p>
-                    {limitedData && (
+                  </div>
+                )}
+                {totalRoundOutcomes > 0 && roundWinRate !== null && (
+                  <div className="text-right">
+                    <p className={`text-xs font-bold ${roundWinRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                      {roundWinRate}%
+                    </p>
+                    {totalRoundOutcomes < 5 && (
                       <p className="text-[9px] text-zinc-600">
-                        {totalOutcomes} matches
+                        {totalRoundOutcomes} rounds
                       </p>
                     )}
                   </div>

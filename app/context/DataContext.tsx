@@ -25,7 +25,7 @@ export interface DataContextValue {
 
   // Map performance
   mapPerformanceRecords: Record<string, MapPerformanceRecord>;
-  updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => void;
+  updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; rounds?: number; roundsWon?: number; roundsLost?: number; matches?: number; matchesWon?: number; matchesLost?: number }) => void;
 
   // Site performance
   sitePerformanceRecords: Record<string, SitePerformanceRecord>;
@@ -433,7 +433,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [isGuest, user]);
 
   // Update map performance: additive upsert with persistence
-  const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => {
+  const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; rounds?: number; roundsWon?: number; roundsLost?: number; matches?: number; matchesWon?: number; matchesLost?: number }) => {
     setMapPerformanceRecords(prev => {
       const updated = upsertMapPerformance(prev, operatorId, mapId, delta);
 
@@ -453,7 +453,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             map_id: mapId,
             kills: delta.kills ?? 0,
             deaths: delta.deaths ?? 0,
+            rounds: delta.rounds ?? 0,
+            rounds_won: delta.roundsWon ?? 0,
+            rounds_lost: delta.roundsLost ?? 0,
             matches: delta.matches ?? 0,
+            matches_won: delta.matchesWon ?? 0,
+            matches_lost: delta.matchesLost ?? 0,
             updated_at: new Date().toISOString(),
           },
         });

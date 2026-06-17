@@ -88,7 +88,12 @@ describe('MapBreakdownPanel — win rate display integration', () => {
       mapId: 'bank',
       kills: 10,
       deaths: 5,
+      rounds: 0,
+      roundsWon: 0,
+      roundsLost: 0,
       matches: 4,
+      matchesWon: 0,
+      matchesLost: 0,
     },
   };
 
@@ -98,14 +103,24 @@ describe('MapBreakdownPanel — win rate display integration', () => {
       mapId: 'bank',
       kills: 10,
       deaths: 5,
+      rounds: 0,
+      roundsWon: 0,
+      roundsLost: 0,
       matches: 4,
+      matchesWon: 0,
+      matchesLost: 0,
     },
     ash_border: {
       operatorId: 'ash',
       mapId: 'border',
       kills: 8,
       deaths: 4,
+      rounds: 0,
+      roundsWon: 0,
+      roundsLost: 0,
       matches: 3,
+      matchesWon: 0,
+      matchesLost: 0,
     },
   };
 
@@ -141,9 +156,8 @@ describe('MapBreakdownPanel — win rate display integration', () => {
     const { MapBreakdownPanel } = await import('../mastery/MapBreakdownPanel');
     render(<MapBreakdownPanel operatorId="ash" records={singleMapRecords} />);
 
-    // Limited data: 3 outcomes < 5, should display "3 matches" in the win rate section
-    // The text "3 matches" may be rendered in a separate element from the performance stats
-    const limitedLabels = screen.getAllByText(/3 matches/);
+    // Limited data: 3 outcomes < 5, should display "3 rounds" in the win rate section
+    const limitedLabels = screen.getAllByText(/3 rounds/);
     expect(limitedLabels.length).toBeGreaterThanOrEqual(1);
   });
 

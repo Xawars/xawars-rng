@@ -30,14 +30,14 @@ function compositeKey(operatorId: string, mapId: string): string {
 }
 
 /**
- * Additive upsert of kills/deaths/matches for a composite key.
+ * Additive upsert of kills/deaths/rounds/matches for a composite key.
  * Returns a new record map (does not mutate the input).
  */
 export function upsertMapPerformance(
   records: Record<string, MapPerformanceRecord>,
   operatorId: string,
   mapId: string,
-  delta: { kills?: number; deaths?: number; matches?: number }
+  delta: { kills?: number; deaths?: number; rounds?: number; roundsWon?: number; roundsLost?: number; matches?: number; matchesWon?: number; matchesLost?: number }
 ): Record<string, MapPerformanceRecord> {
   const key = compositeKey(operatorId, mapId);
   const existing = records[key] ?? {
@@ -45,14 +45,24 @@ export function upsertMapPerformance(
     mapId,
     kills: 0,
     deaths: 0,
+    rounds: 0,
+    roundsWon: 0,
+    roundsLost: 0,
     matches: 0,
+    matchesWon: 0,
+    matchesLost: 0,
   };
 
   const updated: MapPerformanceRecord = {
     ...existing,
     kills: existing.kills + (delta.kills ?? 0),
     deaths: existing.deaths + (delta.deaths ?? 0),
+    rounds: (existing.rounds ?? 0) + (delta.rounds ?? 0),
+    roundsWon: (existing.roundsWon ?? 0) + (delta.roundsWon ?? 0),
+    roundsLost: (existing.roundsLost ?? 0) + (delta.roundsLost ?? 0),
     matches: existing.matches + (delta.matches ?? 0),
+    matchesWon: (existing.matchesWon ?? 0) + (delta.matchesWon ?? 0),
+    matchesLost: (existing.matchesLost ?? 0) + (delta.matchesLost ?? 0),
   };
 
   return {
@@ -206,7 +216,7 @@ export function getBestOperators(
 
 /**
  * Merges two sets of map performance records additively.
- * For overlapping keys, kills/deaths/matches are summed.
+ * For overlapping keys, all numeric fields are summed.
  * Non-overlapping records are included unchanged.
  */
 export function mergeMapPerformanceRecords(
@@ -223,7 +233,12 @@ export function mergeMapPerformanceRecords(
         mapId: cloudRecord.mapId,
         kills: cloudRecord.kills + localRecord.kills,
         deaths: cloudRecord.deaths + localRecord.deaths,
+        rounds: (cloudRecord.rounds ?? 0) + (localRecord.rounds ?? 0),
+        roundsWon: (cloudRecord.roundsWon ?? 0) + (localRecord.roundsWon ?? 0),
+        roundsLost: (cloudRecord.roundsLost ?? 0) + (localRecord.roundsLost ?? 0),
         matches: cloudRecord.matches + localRecord.matches,
+        matchesWon: (cloudRecord.matchesWon ?? 0) + (localRecord.matchesWon ?? 0),
+        matchesLost: (cloudRecord.matchesLost ?? 0) + (localRecord.matchesLost ?? 0),
       };
     } else {
       merged[key] = { ...localRecord };
