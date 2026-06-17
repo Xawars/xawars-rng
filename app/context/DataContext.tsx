@@ -111,7 +111,7 @@ async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<stri
   try {
     const { data, error } = await supabase
       .from('map_performance')
-      .select('operator_id, map_id, kills, deaths, matches')
+      .select('operator_id, map_id, kills, deaths, rounds, rounds_won, rounds_lost, matches, matches_won, matches_lost')
       .eq('user_id', userId);
 
     if (error || !data || data.length === 0) return null;
