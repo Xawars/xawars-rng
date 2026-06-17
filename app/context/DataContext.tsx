@@ -25,7 +25,7 @@ export interface DataContextValue {
 
   // Map performance
   mapPerformanceRecords: Record<string, MapPerformanceRecord>;
-  updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => void;
+  updateMapPerformance: (operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; rounds?: number; roundsWon?: number; roundsLost?: number; matches?: number; matchesWon?: number; matchesLost?: number }) => void;
 
   // Site performance
   sitePerformanceRecords: Record<string, SitePerformanceRecord>;
@@ -111,7 +111,7 @@ async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<stri
   try {
     const { data, error } = await supabase
       .from('map_performance')
-      .select('operator_id, map_id, kills, deaths, matches')
+      .select('operator_id, map_id, kills, deaths, rounds, rounds_won, rounds_lost, matches, matches_won, matches_lost')
       .eq('user_id', userId);
 
     if (error || !data || data.length === 0) return null;
@@ -124,7 +124,12 @@ async function fetchMapPerformanceFromCloud(userId: string): Promise<Record<stri
         mapId: row.map_id,
         kills: row.kills ?? 0,
         deaths: row.deaths ?? 0,
+        rounds: row.rounds ?? 0,
+        roundsWon: row.rounds_won ?? 0,
+        roundsLost: row.rounds_lost ?? 0,
         matches: row.matches ?? 0,
+        matchesWon: row.matches_won ?? 0,
+        matchesLost: row.matches_lost ?? 0,
       };
     }
     return records;
@@ -433,7 +438,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [isGuest, user]);
 
   // Update map performance: additive upsert with persistence
-  const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; matches?: number }) => {
+  const updateMapPerformance = useCallback((operatorId: string, mapId: string, delta: { kills?: number; deaths?: number; rounds?: number; roundsWon?: number; roundsLost?: number; matches?: number; matchesWon?: number; matchesLost?: number }) => {
     setMapPerformanceRecords(prev => {
       const updated = upsertMapPerformance(prev, operatorId, mapId, delta);
 
@@ -453,7 +458,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             map_id: mapId,
             kills: delta.kills ?? 0,
             deaths: delta.deaths ?? 0,
+            rounds: delta.rounds ?? 0,
+            rounds_won: delta.roundsWon ?? 0,
+            rounds_lost: delta.roundsLost ?? 0,
             matches: delta.matches ?? 0,
+            matches_won: delta.matchesWon ?? 0,
+            matches_lost: delta.matchesLost ?? 0,
             updated_at: new Date().toISOString(),
           },
         });

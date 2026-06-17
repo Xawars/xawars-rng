@@ -23,7 +23,12 @@ const positiveDeltaArb = fc.nat({ max: 100 });
 const deltaArb = fc.record({
   kills: fc.option(positiveDeltaArb, { nil: undefined }),
   deaths: fc.option(positiveDeltaArb, { nil: undefined }),
+  rounds: fc.option(positiveDeltaArb, { nil: undefined }),
+  roundsWon: fc.option(positiveDeltaArb, { nil: undefined }),
+  roundsLost: fc.option(positiveDeltaArb, { nil: undefined }),
   matches: fc.option(positiveDeltaArb, { nil: undefined }),
+  matchesWon: fc.option(positiveDeltaArb, { nil: undefined }),
+  matchesLost: fc.option(positiveDeltaArb, { nil: undefined }),
 });
 
 /** Generates a valid MapPerformanceRecord */
@@ -33,7 +38,12 @@ const mapPerformanceRecordArb = (operatorId?: string, mapId?: string) =>
     mapId: mapId ? fc.constant(mapId) : idArb,
     kills: fc.nat({ max: 5000 }),
     deaths: fc.nat({ max: 5000 }),
+    rounds: fc.nat({ max: 1000 }),
+    roundsWon: fc.nat({ max: 500 }),
+    roundsLost: fc.nat({ max: 500 }),
     matches: fc.nat({ max: 500 }),
+    matchesWon: fc.nat({ max: 250 }),
+    matchesLost: fc.nat({ max: 250 }),
   });
 
 /** Generates a record set keyed by composite key */
@@ -89,13 +99,23 @@ describe('Feature: map-performance-tracking, Property 4: Upsert additivity', () 
 
           let expectedKills = 0;
           let expectedDeaths = 0;
+          let expectedRounds = 0;
+          let expectedRoundsWon = 0;
+          let expectedRoundsLost = 0;
           let expectedMatches = 0;
+          let expectedMatchesWon = 0;
+          let expectedMatchesLost = 0;
 
           for (const delta of deltas) {
             records = upsertMapPerformance(records, operatorId, mapId, delta);
             expectedKills += delta.kills ?? 0;
             expectedDeaths += delta.deaths ?? 0;
+            expectedRounds += delta.rounds ?? 0;
+            expectedRoundsWon += delta.roundsWon ?? 0;
+            expectedRoundsLost += delta.roundsLost ?? 0;
             expectedMatches += delta.matches ?? 0;
+            expectedMatchesWon += delta.matchesWon ?? 0;
+            expectedMatchesLost += delta.matchesLost ?? 0;
           }
 
           const key = `${operatorId}_${mapId}`;
@@ -104,7 +124,12 @@ describe('Feature: map-performance-tracking, Property 4: Upsert additivity', () 
           expect(result).toBeDefined();
           expect(result.kills).toBe(expectedKills);
           expect(result.deaths).toBe(expectedDeaths);
+          expect(result.rounds).toBe(expectedRounds);
+          expect(result.roundsWon).toBe(expectedRoundsWon);
+          expect(result.roundsLost).toBe(expectedRoundsLost);
           expect(result.matches).toBe(expectedMatches);
+          expect(result.matchesWon).toBe(expectedMatchesWon);
+          expect(result.matchesLost).toBe(expectedMatchesLost);
           expect(result.operatorId).toBe(operatorId);
           expect(result.mapId).toBe(mapId);
         }
@@ -144,7 +169,12 @@ describe('Feature: map-performance-tracking, Property 7: Migration merge sums co
           if (cloudRec) {
             expect(merged[key].kills).toBe(localRec.kills + cloudRec.kills);
             expect(merged[key].deaths).toBe(localRec.deaths + cloudRec.deaths);
+            expect(merged[key].rounds).toBe(localRec.rounds + cloudRec.rounds);
+            expect(merged[key].roundsWon).toBe(localRec.roundsWon + cloudRec.roundsWon);
+            expect(merged[key].roundsLost).toBe(localRec.roundsLost + cloudRec.roundsLost);
             expect(merged[key].matches).toBe(localRec.matches + cloudRec.matches);
+            expect(merged[key].matchesWon).toBe(localRec.matchesWon + cloudRec.matchesWon);
+            expect(merged[key].matchesLost).toBe(localRec.matchesLost + cloudRec.matchesLost);
           } else {
             // Non-overlapping local records included unchanged
             expect(merged[key].kills).toBe(localRec.kills);
@@ -185,7 +215,12 @@ describe('Feature: map-performance-tracking, Property 9: Threshold gating of sta
           mapId: idArb,
           kills: fc.nat({ max: 1000 }),
           deaths: fc.nat({ max: 1000 }),
+          rounds: fc.nat({ max: 500 }),
+          roundsWon: fc.nat({ max: 250 }),
+          roundsLost: fc.nat({ max: 250 }),
           matches: fc.nat({ max: 100 }),
+          matchesWon: fc.nat({ max: 50 }),
+          matchesLost: fc.nat({ max: 50 }),
         }),
         fc.string({ minLength: 1, maxLength: 20, unit: 'grapheme-ascii' }),
         (record, mapName) => {
@@ -237,7 +272,7 @@ describe('Feature: map-performance-tracking, Property 10: Map breakdown sorting 
 
           for (const [mapId, kills, deaths, matches] of mapEntries) {
             const key = `${operatorId}_${mapId}`;
-            records[key] = { operatorId, mapId, kills, deaths, matches };
+            records[key] = { operatorId, mapId, kills, deaths, rounds: 0, roundsWon: 0, roundsLost: 0, matches, matchesWon: 0, matchesLost: 0 };
             mapLookup[mapId] = `Map ${mapId}`;
           }
 
@@ -315,7 +350,7 @@ describe('Feature: map-performance-tracking, Property 11: Best operators query',
 
           for (const [opId, mapId, opSide, kills, deaths, matches] of operatorEntries) {
             const key = `${opId}_${mapId}`;
-            records[key] = { operatorId: opId, mapId, kills, deaths, matches };
+            records[key] = { operatorId: opId, mapId, kills, deaths, rounds: 0, roundsWon: 0, roundsLost: 0, matches, matchesWon: 0, matchesLost: 0 };
             // Only set lookup for each unique operator (first encountered side wins)
             if (!operatorLookup[opId]) {
               operatorLookup[opId] = { name: `Op ${opId}`, side: opSide };
@@ -363,25 +398,19 @@ describe('Feature: map-performance-tracking, Property 11: Best operators query',
  * **Validates: Requirements 2.1, 2.3**
  */
 describe('Feature: map-performance-tracking, Property 2: Active map filtering', () => {
-  it('returns only active maps, sorted alphabetically', () => {
+  it('returns all maps sorted alphabetically', () => {
     fc.assert(
       fc.property(
         fc.array(mapDataArb, { minLength: 0, maxLength: 20 }),
         (maps) => {
           const result = getActiveMaps(maps);
 
-          // All returned maps must be active
-          for (const map of result) {
-            expect(map.active).toBe(true);
-          }
+          // All maps from input must be present in result
+          expect(result.length).toBe(maps.length);
 
-          // Must contain all active maps from the input
-          const expectedActive = maps.filter((m) => m.active === true);
-          expect(result.length).toBe(expectedActive.length);
-
-          // All active maps from input must be present in result
-          for (const activeMap of expectedActive) {
-            expect(result.some((m) => m.id === activeMap.id && m.name === activeMap.name)).toBe(true);
+          // All input maps must be present in result
+          for (const map of maps) {
+            expect(result.some((m) => m.id === map.id && m.name === map.name)).toBe(true);
           }
 
           // Must be sorted alphabetically by name

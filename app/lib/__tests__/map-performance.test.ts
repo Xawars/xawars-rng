@@ -16,7 +16,12 @@ describe('map-performance', () => {
         mapId: 'bank',
         kills: 12,
         deaths: 0,
+        rounds: 0,
+        roundsWon: 0,
+        roundsLost: 0,
         matches: 5,
+        matchesWon: 0,
+        matchesLost: 0,
       };
 
       const result = computeMapStats(record, 'Bank');
@@ -32,7 +37,12 @@ describe('map-performance', () => {
         mapId: 'border',
         kills: 0,
         deaths: 0,
+        rounds: 0,
+        roundsWon: 0,
+        roundsLost: 0,
         matches: 3,
+        matchesWon: 0,
+        matchesLost: 0,
       };
 
       const result = computeMapStats(record, 'Border');
@@ -48,7 +58,12 @@ describe('map-performance', () => {
         mapId: 'bank',
         kills: 5,
         deaths: 2,
+        rounds: 0,
+        roundsWon: 0,
+        roundsLost: 0,
         matches: 2,
+        matchesWon: 0,
+        matchesLost: 0,
       };
 
       const result = computeMapStats(record, 'Bank');
@@ -58,7 +73,7 @@ describe('map-performance', () => {
   });
 
   describe('getActiveMaps — deactivated maps excluded', () => {
-    it('excludes maps with active=false from the active map list', () => {
+    it('returns all maps sorted alphabetically regardless of active flag', () => {
       const maps: MapData[] = [
         { id: 'bank', name: 'Bank', active: true, sites: [] },
         { id: 'border', name: 'Border', active: false, sites: [] },
@@ -67,8 +82,8 @@ describe('map-performance', () => {
 
       const result = getActiveMaps(maps);
 
-      expect(result).toHaveLength(2);
-      expect(result.map((m) => m.id)).toEqual(['bank', 'clubhouse']);
+      expect(result).toHaveLength(3);
+      expect(result.map((m) => m.id)).toEqual(['bank', 'border', 'clubhouse']);
     });
 
     it('retains records referencing deactivated maps (records are independent of active flag)', () => {
@@ -78,14 +93,24 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 10,
           deaths: 3,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 4,
+          matchesWon: 0,
+          matchesLost: 0,
         },
         'ash_border': {
           operatorId: 'ash',
           mapId: 'border',
           kills: 8,
           deaths: 2,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 3,
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 
@@ -94,18 +119,22 @@ describe('map-performance', () => {
         { id: 'border', name: 'Border', active: false, sites: [] },
       ];
 
-      // Deactivating a map does NOT affect records
+      // getActiveMaps returns all maps sorted
       const activeMaps = getActiveMaps(maps);
-      expect(activeMaps).toHaveLength(1);
-      expect(activeMaps[0].id).toBe('bank');
+      expect(activeMaps).toHaveLength(2);
 
-      // Records for the deactivated map remain unchanged
+      // Records for any map remain unchanged
       expect(records['ash_border']).toEqual({
         operatorId: 'ash',
         mapId: 'border',
         kills: 8,
         deaths: 2,
+        rounds: 0,
+        roundsWon: 0,
+        roundsLost: 0,
         matches: 3,
+        matchesWon: 0,
+        matchesLost: 0,
       });
     });
 
@@ -130,21 +159,36 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 10,
           deaths: 3,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 5,
+          matchesWon: 0,
+          matchesLost: 0,
         },
         'ash_border': {
           operatorId: 'ash',
           mapId: 'border',
           kills: 0,
           deaths: 0,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 0,
+          matchesWon: 0,
+          matchesLost: 0,
         },
         'ash_clubhouse': {
           operatorId: 'ash',
           mapId: 'clubhouse',
           kills: 2,
           deaths: 1,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 1,
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 
@@ -168,7 +212,12 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 0,
           deaths: 0,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 0,
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 
@@ -187,14 +236,24 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 5,
           deaths: 2,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 2, // below threshold of 3
+          matchesWon: 0,
+          matchesLost: 0,
         },
         'thermite_bank': {
           operatorId: 'thermite',
           mapId: 'bank',
           kills: 3,
           deaths: 1,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 1, // below threshold
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 
@@ -215,7 +274,12 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 15,
           deaths: 3,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 5,
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 
@@ -236,7 +300,12 @@ describe('map-performance', () => {
           mapId: 'bank',
           kills: 10,
           deaths: 3,
+          rounds: 0,
+          roundsWon: 0,
+          roundsLost: 0,
           matches: 4,
+          matchesWon: 0,
+          matchesLost: 0,
         },
       };
 

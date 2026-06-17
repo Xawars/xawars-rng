@@ -68,6 +68,26 @@ export function migrateHistoryItem(item: HistoryItem): HistoryItem {
   return { ...rest, matches: [], schemaVersion: 2 };
 }
 
+// ponytail: derive match outcome from round results using R6S win conditions
+// Ranked/Standard → first to 4 rounds; Quick Match → first to 3; Deathmatch/unknown → majority
+function deriveMatchOutcome(
+  roundsWon: number,
+  roundsLost: number,
+  matchType: MatchType | null | undefined
+): 'win' | 'loss' {
+  const threshold =
+    matchType === 'Quick Match' ? 3 :
+    matchType === 'Ranked' || matchType === 'Unranked' ? 4 :
+    null; // Deathmatch or unknown — fallback to majority
+
+  if (threshold) {
+    if (roundsWon >= threshold) return 'win';
+    if (roundsLost >= threshold) return 'loss';
+  }
+  // ponytail: fallback — user ended early or mode has no formal threshold
+  return roundsWon > roundsLost ? 'win' : 'loss';
+}
+
 export default function Home() {
   return (
     <ProtectedRoute>
@@ -167,6 +187,8 @@ function HomeContent() {
   const [isRolling, setIsRolling] = useState(false);
   const [wallpaperError, setWallpaperError] = useState(false);
   const [matchEndOpen, setMatchEndOpen] = useState(false);
+  // ponytail: when true, picking Win/Loss will also close the match after recording the round
+  const pendingEndMatchRef = useRef(false);
 
   // Check if existing user needs a callsign prompt
   useEffect(() => {
@@ -559,17 +581,52 @@ function HomeContent() {
     if (!activeMatch || !currentDeploymentId) return;
     const roundKills = kills - roundStartKillsRef.current;
     const roundDeaths = deaths - roundStartDeathsRef.current;
+    const shouldEndMatch = pendingEndMatchRef.current;
+    pendingEndMatchRef.current = false;
 
-    // Append round to active match's rounds array
-    setHistory(prev => prev.map(h =>
-      h.deploymentId === currentDeploymentId
-        ? { ...h, matches: (h.matches || []).map(m => m.id === activeMatch.id ? { ...m, rounds: [...m.rounds, { siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome }] } : m) }
-        : h
-    ));
+    // Append round to active match's rounds array — also close the match if pending
+    const now = new Date().toISOString();
+    setHistory(prev => prev.map(h => {
+      if (h.deploymentId !== currentDeploymentId) return h;
+      const matches = (h.matches || []).map(m => {
+        if (m.id !== activeMatch.id) return m;
+        const updated = { ...m, rounds: [...m.rounds, { siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome }] };
+        return shouldEndMatch ? { ...updated, endedAt: now } : updated;
+      });
+      return { ...h, matches };
+    }));
+
+    // Update map performance: round stats
+    if (currentOperator && activeMatch.mapId) {
+      updateMapPerformance(currentOperator.id, activeMatch.mapId, {
+        rounds: 1,
+        roundsWon: outcome === 'win' ? 1 : 0,
+        roundsLost: outcome === 'loss' ? 1 : 0,
+      });
+    }
 
     // Mastery updates use match-level mapId (Req 8.1–8.3)
     if (activeMatch.mapId) {
       updateMapWinLoss(activeMatch.mapId, outcome);
+    }
+
+    // ponytail: if ending match, also update match/site counters and compute match outcome
+    if (shouldEndMatch && currentOperator && activeMatch.mapId) {
+      // Compute match outcome from all rounds including the one just recorded
+      const allRounds = [...activeMatch.rounds, { siteId: currentSiteId, kills: roundKills, deaths: roundDeaths, outcome }];
+      const matchWins = allRounds.filter(r => r.outcome === 'win').length;
+      const matchLosses = allRounds.filter(r => r.outcome === 'loss').length;
+      const matchOutcome = deriveMatchOutcome(matchWins, matchLosses, currentMatchType);
+
+      updateMapPerformance(currentOperator.id, activeMatch.mapId, {
+        matches: 1,
+        matchesWon: matchOutcome === 'win' ? 1 : 0,
+        matchesLost: matchOutcome === 'loss' ? 1 : 0,
+      });
+      const sites = new Set([...activeMatch.rounds.map(r => r.siteId), currentSiteId].filter(Boolean));
+      sites.forEach(siteId => {
+        updateSitePerformance(currentOperator.id, activeMatch.mapId!, siteId!, { matches: 1 });
+      });
     }
 
     // Reset round-start refs for next round
@@ -579,6 +636,11 @@ function HomeContent() {
     // Clear site so user picks a new one for next round
     setCurrentSiteId(null);
     setMatchEndOpen(false);
+
+    // If ending the match, also clear map
+    if (shouldEndMatch) {
+      setCurrentMapId(null);
+    }
   };
 
 
@@ -586,6 +648,18 @@ function HomeContent() {
   // ponytail: close the active match — sets endedAt, clears map/site so player can start a new match
   const handleEndMatch = () => {
     if (!currentDeploymentId || !activeMatch) return;
+
+    // ponytail: if there's unrecorded round activity, force the Win/Loss prompt first
+    const hasUnrecordedActivity =
+      !!currentSiteId ||
+      (kills - roundStartKillsRef.current > 0) ||
+      (deaths - roundStartDeathsRef.current > 0);
+    if (hasUnrecordedActivity) {
+      pendingEndMatchRef.current = true;
+      setMatchEndOpen(true);
+      return;
+    }
+
     const now = new Date().toISOString();
     setHistory(prev => prev.map(h => {
       if (h.deploymentId !== currentDeploymentId) return h;
@@ -593,9 +667,17 @@ function HomeContent() {
       return { ...h, matches };
     }));
 
-    // ponytail: increment match counter once per match, and once per distinct site
+    // ponytail: increment match counter with outcome derived from rounds using R6S rules
     if (currentOperator && activeMatch.mapId) {
-      updateMapPerformance(currentOperator.id, activeMatch.mapId, { matches: 1 });
+      const matchWins = activeMatch.rounds.filter(r => r.outcome === 'win').length;
+      const matchLosses = activeMatch.rounds.filter(r => r.outcome === 'loss').length;
+      const matchOutcome = deriveMatchOutcome(matchWins, matchLosses, currentMatchType);
+
+      updateMapPerformance(currentOperator.id, activeMatch.mapId, {
+        matches: 1,
+        matchesWon: matchOutcome === 'win' ? 1 : 0,
+        matchesLost: matchOutcome === 'loss' ? 1 : 0,
+      });
       const sites = new Set(activeMatch.rounds.map(r => r.siteId).filter(Boolean));
       sites.forEach(siteId => {
         updateSitePerformance(currentOperator.id, activeMatch.mapId!, siteId!, { matches: 1 });
@@ -604,6 +686,7 @@ function HomeContent() {
 
     setCurrentMapId(null);
     setCurrentSiteId(null);
+    setMatchEndOpen(false);
   };
 
   const wallpaperExt = currentOperator?.id === 'snake' ? 'png' : 'jpg';
@@ -833,7 +916,7 @@ function HomeContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMatchEndOpen(false)}
+                    onClick={() => { pendingEndMatchRef.current = false; setMatchEndOpen(false); }}
                     className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors"
                   >
                     Cancel

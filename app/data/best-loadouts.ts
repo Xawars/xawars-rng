@@ -276,7 +276,7 @@ export const bestLoadouts: Record<string, Loadout> = {
     gadget: "Nitro Cell",
   },
   caveira: {
-    primary: "SPAS-15",
+    primary: "M12",
     secondary: "Luison",
     gadget: "Impact Grenade",
   },

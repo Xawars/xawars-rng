@@ -19,8 +19,8 @@ describe('map-performance-storage', () => {
 
     it('returns parsed records when valid JSON exists', () => {
       const records: Record<string, MapPerformanceRecord> = {
-        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 12, deaths: 5, matches: 4 },
-        thermite_border: { operatorId: 'thermite', mapId: 'border', kills: 8, deaths: 3, matches: 3 },
+        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 12, deaths: 5, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 4, matchesWon: 0, matchesLost: 0 },
+        thermite_border: { operatorId: 'thermite', mapId: 'border', kills: 8, deaths: 3, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 3, matchesWon: 0, matchesLost: 0 },
       };
       localStorage.setItem('xawars_mapPerformance', JSON.stringify(records));
 
@@ -46,7 +46,7 @@ describe('map-performance-storage', () => {
   describe('saveMapPerformanceRecords', () => {
     it('persists records to localStorage under the correct key', () => {
       const records: Record<string, MapPerformanceRecord> = {
-        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, matches: 3 },
+        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 3, matchesWon: 0, matchesLost: 0 },
       };
 
       saveMapPerformanceRecords(records);
@@ -64,7 +64,7 @@ describe('map-performance-storage', () => {
       });
 
       const records: Record<string, MapPerformanceRecord> = {
-        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, matches: 3 },
+        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 3, matchesWon: 0, matchesLost: 0 },
       };
 
       // Should not throw
@@ -78,7 +78,7 @@ describe('map-performance-storage', () => {
       });
 
       const records: Record<string, MapPerformanceRecord> = {
-        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, matches: 3 },
+        ash_bank: { operatorId: 'ash', mapId: 'bank', kills: 10, deaths: 2, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 3, matchesWon: 0, matchesLost: 0 },
       };
 
       expect(() => saveMapPerformanceRecords(records)).toThrow('unexpected storage error');
@@ -86,8 +86,8 @@ describe('map-performance-storage', () => {
 
     it('uses composite key format {operatorId}_{mapId}', () => {
       const records: Record<string, MapPerformanceRecord> = {
-        'sledge_oregon': { operatorId: 'sledge', mapId: 'oregon', kills: 5, deaths: 1, matches: 2 },
-        'jager_clubhouse': { operatorId: 'jager', mapId: 'clubhouse', kills: 7, deaths: 4, matches: 3 },
+        'sledge_oregon': { operatorId: 'sledge', mapId: 'oregon', kills: 5, deaths: 1, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 2, matchesWon: 0, matchesLost: 0 },
+        'jager_clubhouse': { operatorId: 'jager', mapId: 'clubhouse', kills: 7, deaths: 4, rounds: 0, roundsWon: 0, roundsLost: 0, matches: 3, matchesWon: 0, matchesLost: 0 },
       };
 
       saveMapPerformanceRecords(records);

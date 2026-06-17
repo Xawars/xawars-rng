@@ -39,7 +39,12 @@ const mapPerformanceRecordsArb = fc
         mapId: fc.constant(mapId),
         kills: fc.nat({ max: 1000 }),
         deaths: fc.nat({ max: 1000 }),
+        rounds: fc.nat({ max: 500 }),
+        roundsWon: fc.nat({ max: 250 }),
+        roundsLost: fc.nat({ max: 250 }),
         matches: fc.nat({ max: 100 }),
+        matchesWon: fc.nat({ max: 50 }),
+        matchesLost: fc.nat({ max: 50 }),
       }).map((rec) => ({
         key: `${opId}_${mapId}`,
         record: rec,
@@ -48,7 +53,7 @@ const mapPerformanceRecordsArb = fc
     { minLength: 0, maxLength: 10 }
   )
   .map((entries) => {
-    const records: Record<string, { operatorId: string; mapId: string; kills: number; deaths: number; matches: number }> = {};
+    const records: Record<string, MapPerformanceRecord> = {};
     for (const { key, record } of entries) {
       records[key] = record;
     }
@@ -181,7 +186,7 @@ describe('Backward compatibility: Deployments without map data', () => {
  * **Validates: Requirements 7.3**
  */
 describe('Backward compatibility: MapData without active field', () => {
-  it('MapData without `active` field defaults to active (included in getActiveMaps)', () => {
+  it('MapData without `active` field is included in getActiveMaps (all maps returned)', () => {
     // Create MapData objects without the `active` field by casting to bypass TypeScript
     const mapWithoutActive = {
       id: 'legacy-map',
@@ -205,19 +210,17 @@ describe('Backward compatibility: MapData without active field', () => {
 
     const result = getActiveMaps([mapWithoutActive, mapWithActiveTrue, mapWithActiveFalse]);
 
-    // Map without `active` field should be included (defaults to active)
+    // All maps are returned (getActiveMaps no longer filters by active flag)
     expect(result.some((m) => m.id === 'legacy-map')).toBe(true);
-
-    // Map with active: true should be included
     expect(result.some((m) => m.id === 'active-map')).toBe(true);
+    expect(result.some((m) => m.id === 'inactive-map')).toBe(true);
 
-    // Map with active: false should be excluded
-    expect(result.some((m) => m.id === 'inactive-map')).toBe(false);
-
-    // Result should contain exactly 2 maps
-    expect(result.length).toBe(2);
+    // Result should contain all 3 maps
+    expect(result.length).toBe(3);
 
     // Result should be sorted alphabetically
-    expect(result[0].name.localeCompare(result[1].name)).toBeLessThanOrEqual(0);
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i - 1].name.localeCompare(result[i].name)).toBeLessThanOrEqual(0);
+    }
   });
 });

@@ -58,7 +58,7 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="relative bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-wider">
@@ -81,7 +81,7 @@ export function OperatorCardModal({ item, operatorKills, operatorDeaths, onClose
           </div>
         </div>
 
-        <div id="operator-card-export-content" className="flex flex-col">
+        <div id="operator-card-export-content" className="flex flex-col min-h-0 overflow-y-auto">
           <div className="px-4 py-2 bg-zinc-800/50 flex items-center gap-2 text-xs border-b border-zinc-700/50">
             <span className={`font-bold uppercase ${item.operator.side === 'attacker' ? 'text-orange-500' : 'text-blue-500'}`}>
               {item.operator.side}

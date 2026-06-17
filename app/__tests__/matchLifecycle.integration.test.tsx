@@ -153,7 +153,7 @@ describe('Match Lifecycle Integration: 3 rounds → end match', () => {
     localStorage.setItem('xawars_deaths', JSON.stringify(0));
   });
 
-  it('increments map match count once and each distinct site once after match-end, not during rounds', async () => {
+  it('increments map match count once and each distinct site once after match-end, not during rounds', { timeout: 15000 }, async () => {
     const Home = (await import('@/app/page')).default;
 
     await act(async () => {

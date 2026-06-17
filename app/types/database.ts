@@ -52,6 +52,7 @@ export interface AchievementRecord {
 
 /**
  * Per-operator per-map performance record.
+ * Single source of truth for all map-related performance metrics.
  * Maps to the `public.map_performance` Supabase table.
  */
 export interface MapPerformanceRecord {
@@ -59,7 +60,12 @@ export interface MapPerformanceRecord {
   mapId: string;
   kills: number;
   deaths: number;
+  rounds: number;
+  roundsWon: number;
+  roundsLost: number;
   matches: number;
+  matchesWon: number;
+  matchesLost: number;
 }
 
 /**
