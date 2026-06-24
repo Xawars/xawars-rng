@@ -83,7 +83,7 @@ This plan implements user authentication (email/password + OAuth), cloud persist
     - Test that for any two conflicting operations, the one with the more recent timestamp persists
     - **Validates: Requirements 15.3**
 
-- [~] 4. Checkpoint - Ensure all tests pass
+- [ ] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 5. Implement Data Context with cloud persistence
@@ -158,80 +158,80 @@ This plan implements user authentication (email/password + OAuth), cloud persist
     - Test that transforming localStorage data to cloud format and back produces equivalent data
     - **Validates: Requirements 5.1, 5.2**
 
-- [~] 7. Checkpoint - Ensure all tests pass
+- [ ] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Implement Gamification Context
-  - [-] 8.1 Create GamificationContext with XP and level system
+  - [ ] 8.1 Create GamificationContext with XP and level system
     - Create `app/context/GamificationContext.tsx` with `GamificationProvider` and `useGamification` hook
     - Implement `awardXP(amount, source)` that adds XP to total, persists via DataContext/SyncQueue
     - Calculate level using `floor(totalXP / 100) + 1`
     - Detect level-up boundary crossings and emit level-up notification
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-  - [~] 8.2 Write property test for level calculation formula
+  - [ ] 8.2 Write property test for level calculation formula
     - **Property 8: Level Calculation Formula**
     - Test that for any non-negative totalXP, level equals `floor(totalXP / 100) + 1`
     - **Validates: Requirements 10.5**
 
-  - [~] 8.3 Write property test for level-up boundary detection
+  - [ ] 8.3 Write property test for level-up boundary detection
     - **Property 9: Level-Up Boundary Detection**
     - Test that a level-up event fires if and only if XP crosses a 100-point boundary
     - **Validates: Requirements 10.6**
 
-  - [~] 8.4 Implement achievements system
+  - [ ] 8.4 Implement achievements system
     - Add `checkAchievements` method to GamificationContext
     - After each qualifying action, evaluate all achievement conditions against current metrics
     - Unlock achievement when threshold met for the first time, award XP bonus, persist to `achievements` table
     - Display notification on unlock
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-  - [~] 8.5 Write property test for achievement unlock at threshold
+  - [ ] 8.5 Write property test for achievement unlock at threshold
     - **Property 10: Achievement Unlock at Threshold**
     - Test that an achievement unlocks if and only if metric >= threshold AND not previously unlocked
     - **Validates: Requirements 11.2**
 
-  - [-] 8.6 Implement daily streak tracking
+  - [ ] 8.6 Implement daily streak tracking
     - Add `recordActivity` method that marks the current calendar day as active
     - Increment streak on consecutive days, reset to zero on missed days
     - Persist current streak, longest streak, and last active date via DataContext
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-  - [~] 8.7 Write property test for streak calculation correctness
+  - [ ] 8.7 Write property test for streak calculation correctness
     - **Property 11: Streak Calculation Correctness**
     - Test that streak equals the length of consecutive calendar-day run ending at most recent active date, or zero if gap exists
     - **Validates: Requirements 12.2, 12.3**
 
-  - [~] 8.8 Write unit tests for XP award amounts
+  - [ ] 8.8 Write unit tests for XP award amounts
     - Test specific XP values: 10 for deployment, 25 for kill target, 15 for content idea, 20 for ranked win
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
 - [ ] 9. Implement User Profile Display
-  - [~] 9.1 Create UserProfile component with level, XP, streak, and stats
+  - [ ] 9.1 Create UserProfile component with level, XP, streak, and stats
     - Create `app/components/UserProfile.tsx` displaying current level, total XP, XP progress bar to next level, current streak, longest streak
     - Display total deployments, total kills, total deaths, and overall K/D ratio
     - Show all achievements with locked/unlocked status
     - _Requirements: 14.1, 14.2, 14.3, 11.5_
 
-  - [~] 9.2 Write property test for K/D ratio calculation
+  - [ ] 9.2 Write property test for K/D ratio calculation
     - **Property 12: K/D Ratio Calculation**
     - Test that K/D = kills/deaths rounded to 2 decimals when deaths > 0, null when deaths = 0
     - **Validates: Requirements 14.3**
 
 - [ ] 10. Implement Guest Mode and account creation prompts
-  - [~] 10.1 Add guest mode access control and account creation prompts
+  - [ ] 10.1 Add guest mode access control and account creation prompts
     - When no session exists, allow access to operator roulette and basic kill/death tracking via localStorage
     - Display a non-intrusive prompt encouraging account creation for cloud save and gamification
     - When a guest attempts to access gamification features, show a login prompt
     - _Requirements: 13.1, 13.2, 13.3_
 
 - [ ] 11. Wire everything together and integrate with existing components
-  - [~] 11.1 Wrap app with AuthProvider, DataProvider, and GamificationProvider
+  - [ ] 11.1 Wrap app with AuthProvider, DataProvider, and GamificationProvider
     - Update `app/layout.tsx` to wrap children with the three context providers in correct order (Auth → Data → Gamification)
     - Ensure DataContext reads auth state to decide between localStorage (guest) and Supabase (authenticated)
     - _Requirements: 4.1, 13.1_
 
-  - [~] 11.2 Integrate DataContext with existing components
+  - [ ] 11.2 Integrate DataContext with existing components
     - Update `OperatorDisplay` / roulette flow to call `addDeployment` and `awardXP('deployment')` on accept
     - Update `OperatorStatsModal` to call `updateOperatorStat` and `awardXP('kill_target')` on kill target completion
     - Update `RankedDisplay` to call `updateRankedStats` and `awardXP('ranked_win')` on win
@@ -240,18 +240,18 @@ This plan implements user authentication (email/password + OAuth), cloud persist
     - Call `checkAchievements` after each XP-awarding action
     - _Requirements: 6.1, 7.1, 8.1, 9.1, 10.1, 10.2, 10.3, 10.4, 11.1, 12.1_
 
-  - [~] 11.3 Add login/register UI and offline status indicator
+  - [ ] 11.3 Add login/register UI and offline status indicator
     - Create login/register page or modal with email/password fields and OAuth buttons
     - Add offline status indicator in the header (subtle dot)
     - Add "Syncing..." / "All changes saved" indicator on reconnection
     - _Requirements: 1.1, 2.1, 3.1, 3.2, 15.1_
 
-  - [~] 11.4 Add level-up and achievement notification toasts
+  - [ ] 11.4 Add level-up and achievement notification toasts
     - Create notification toast component for level-up events and achievement unlocks
     - Wire notifications to GamificationContext events
     - _Requirements: 10.6, 11.2_
 
-- [~] 12. Final checkpoint - Ensure all tests pass
+- [ ] 12. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

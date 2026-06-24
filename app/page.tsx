@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dices, RotateCcw, UserRoundSearch, Flag, Swords } from 'lucide-react';
+import Link from 'next/link';
+import { Dices, RotateCcw, UserRoundSearch, Flag, Swords, Users } from 'lucide-react';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useAuth } from './context/AuthContext';
 import { Button } from './components/ui/Button';
@@ -774,6 +775,14 @@ function HomeContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/operators" className="inline-flex items-center justify-center px-3 py-1.5 text-xs gap-1.5 font-bold uppercase tracking-wider rounded text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900">
+              <Users className="w-3 h-3" aria-hidden="true" />
+              <span className="hidden sm:inline">Operators</span>
+            </Link>
+            <Link href="/random" className="inline-flex items-center justify-center px-3 py-1.5 text-xs gap-1.5 font-bold uppercase tracking-wider rounded text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-zinc-900">
+              <Dices className="w-3 h-3" aria-hidden="true" />
+              <span className="hidden sm:inline">Random</span>
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleReset} icon={RotateCcw}>
               Reset Run
             </Button>

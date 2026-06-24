@@ -227,10 +227,10 @@ function LoginPageContent() {
         <div className="flex flex-col items-center text-center mb-5">
           <XAWarsLogo size={52} className="mb-2 drop-shadow-[0_0_12px_rgba(234,179,8,0.3)]" />
           <h1 className="text-2xl font-bold uppercase tracking-wider text-yellow-500">
-            XAWARS
+            XAWARS RNG
           </h1>
           <p className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-medium">
-            Tactical Operator Roulette
+            A system built to help you get better at Rainbow Six Siege.
           </p>
         </div>
 
@@ -294,34 +294,42 @@ function LoginPageContent() {
 }
 
 /**
- * Atmospheric background with subtle grid texture and radial glow.
+ * Atmospheric background: noise texture + scan line + diagonal hatch + vignette.
  */
 function AuthBackground() {
   return (
     <>
-      {/* Radial glow */}
+      {/* SVG noise texture (film grain) */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]" aria-hidden="true">
+        <filter id="auth-noise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#auth-noise)" />
+      </svg>
+
+      {/* Diagonal hatch lines */}
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
         aria-hidden="true"
         style={{
-          background: 'radial-gradient(ellipse at 50% 40%, rgba(234,179,8,0.03) 0%, transparent 60%)',
+          backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 12px)',
         }}
       />
-      {/* Grid texture */}
+
+      {/* Animated scan line */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden="true"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }}
-      />
+      >
+        <div className="auth-scanline" />
+      </div>
+
       {/* Vignette */}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)',
         }}
       />
     </>
