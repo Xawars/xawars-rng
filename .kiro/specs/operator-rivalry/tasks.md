@@ -160,7 +160,7 @@ Implement a head-to-head operator comparison feature using a pure `ComparisonEng
     - Export RivalryView, RivalrySelector, RivalryStatCard components
     - _Requirements: N/A (project structure)_
 
-- [~] 9. Final checkpoint - Ensure all tests pass
+- [ ] 9. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -37,6 +37,10 @@ export default function RootLayout({
             </OnboardingProvider>
           </DataProvider>
         </AuthProvider>
+        {/* Noise texture overlay */}
+        <div className="fixed inset-0 z-50 pointer-events-none" aria-hidden="true">
+          <div className="w-full h-full bg-repeat opacity-[0.06]" style={{ backgroundImage: 'url(/img/noise-texture.png)', backgroundSize: '109px' }} />
+        </div>
       </body>
     </html>
   );
